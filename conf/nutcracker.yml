@@ -8,6 +8,7 @@ alpha:
   server_failure_limit: 1
   servers:
    - 127.0.0.1:6379:1
+  failover: beta
 
 beta:
   listen: 127.0.0.1:22122
@@ -18,10 +19,11 @@ beta:
   timeout: 400
   redis: true
   servers:
-   - 127.0.0.1:6380:1 server1
-   - 127.0.0.1:6381:1 server2
-   - 127.0.0.1:6382:1 server3
-   - 127.0.0.1:6383:1 server4
+   - 127.0.0.1:6380:1 server1^0
+   - 127.0.0.1:6381:1 server2^1001
+   - 127.0.0.1:6382:1 server3^2001
+   - 127.0.0.1:6383:1 server4^3001
+  failover: xxx
 
 gamma:
   listen: 127.0.0.1:22123

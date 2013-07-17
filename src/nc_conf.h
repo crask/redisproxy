@@ -41,18 +41,18 @@
 #define CONF_UNSET_HASH (hash_type_t) -1
 #define CONF_UNSET_DIST (dist_type_t) -1
 
-#define CONF_DEFAULT_HASH                    HASH_FNV1A_64
-#define CONF_DEFAULT_DIST                    DIST_KETAMA
-#define CONF_DEFAULT_TIMEOUT                 -1
-#define CONF_DEFAULT_LISTEN_BACKLOG          512
-#define CONF_DEFAULT_CLIENT_CONNECTIONS      0
-#define CONF_DEFAULT_REDIS                   false
-#define CONF_DEFAULT_PRECONNECT              false
-#define CONF_DEFAULT_AUTO_EJECT_HOSTS        false
-#define CONF_DEFAULT_SERVER_RETRY_TIMEOUT    30 * 1000      /* in msec */
-#define CONF_DEFAULT_SERVER_FAILURE_LIMIT    2
-#define CONF_DEFAULT_SERVER_CONNECTIONS      1
-#define CONF_DEFAULT_KETAMA_PORT             11211
+#define CONF_DEFAULT_HASH                 HASH_FNV1A_64
+#define CONF_DEFAULT_DIST                 DIST_KETAMA
+#define CONF_DEFAULT_TIMEOUT              -1
+#define CONF_DEFAULT_LISTEN_BACKLOG       512
+#define CONF_DEFAULT_CLIENT_CONNECTIONS   0
+#define CONF_DEFAULT_REDIS                false
+#define CONF_DEFAULT_PRECONNECT           false
+#define CONF_DEFAULT_AUTO_EJECT_HOSTS     false
+#define CONF_DEFAULT_SERVER_RETRY_TIMEOUT 30 * 1000 /* in msec */
+#define CONF_DEFAULT_SERVER_FAILURE_LIMIT 2
+#define CONF_DEFAULT_SERVER_CONNECTIONS   1
+#define CONF_DEFAULT_KETAMA_PORT          11211
 
 struct conf_listen {
     struct string   pname;   /* listen: as "name:port" */
@@ -63,31 +63,33 @@ struct conf_listen {
 };
 
 struct conf_server {
-    struct string   pname;      /* server: as "name:port:weight" */
-    struct string   name;       /* name */
-    int             port;       /* port */
-    int             weight;     /* weight */
-    struct sockinfo info;       /* connect socket info */
-    unsigned        valid:1;    /* valid? */
+    struct string   pname;              /* server: as "name:port:weight" */
+    struct string   name;               /* name */
+    int             port;               /* port */
+    int             weight;             /* weight */
+    int             start;              /* range start */
+    struct sockinfo info;               /* connect socket info */
+    unsigned        valid:1;            /* valid? */
 };
 
 struct conf_pool {
     struct string      name;                  /* pool name (root node) */
-    struct conf_listen listen;                /* listen: */
-    hash_type_t        hash;                  /* hash: */
-    struct string      hash_tag;              /* hash_tag: */
-    dist_type_t        distribution;          /* distribution: */
-    int                timeout;               /* timeout: */
-    int                backlog;               /* backlog: */
-    int                client_connections;    /* client_connections: */
-    int                redis;                 /* redis: */
-    int                preconnect;            /* preconnect: */
-    int                auto_eject_hosts;      /* auto_eject_hosts: */
-    int                server_connections;    /* server_connections: */
-    int                server_retry_timeout;  /* server_retry_timeout: in msec */
-    int                server_failure_limit;  /* server_failure_limit: */
-    struct array       server;                /* servers: conf_server[] */
-    unsigned           valid:1;               /* valid? */
+    struct conf_listen listen;          /* listen: */
+    hash_type_t        hash;            /* hash: */
+    struct string      hash_tag;        /* hash_tag: */
+    dist_type_t        distribution;    /* distribution: */
+    int                timeout;         /* timeout: */
+    int                backlog;         /* backlog: */
+    int                client_connections; /* client_connections: */
+    int                redis;           /* redis: */
+    int                preconnect;      /* preconnect: */
+    int                auto_eject_hosts; /* auto_eject_hosts: */
+    int                server_connections; /* server_connections: */
+    int                server_retry_timeout; /* server_retry_timeout: in msec */
+    int                server_failure_limit; /* server_failure_limit: */
+    struct array       server;          /* servers: conf_server[] */
+    unsigned           valid:1;         /* valid? */
+    struct string      failover;        /* failover pool name*/
 };
 
 struct conf {

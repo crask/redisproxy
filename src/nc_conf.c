@@ -98,6 +98,10 @@ static struct command conf_commands[] = {
       conf_add_server,
       offsetof(struct conf_pool, server) },
 
+    { string("failover"),
+      conf_set_string,
+      offsetof(struct conf_pool, failover) },
+
     null_command
 };
 
@@ -108,7 +112,8 @@ conf_server_init(struct conf_server *cs)
     string_init(&cs->name);
     cs->port = 0;
     cs->weight = 0;
-
+    cs->start = 0;
+    
     memset(&cs->info, 0, sizeof(cs->info));
 
     cs->valid = 0;
@@ -167,7 +172,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     rstatus_t status;
 
     string_init(&cp->name);
-
+    
     string_init(&cp->listen.pname);
     string_init(&cp->listen.name);
     cp->listen.port = 0;
@@ -193,7 +198,9 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     array_null(&cp->server);
 
     cp->valid = 0;
-
+    
+    string_init(&cp->failover);
+    
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -224,6 +231,8 @@ conf_pool_deinit(struct conf_pool *cp)
     }
     array_deinit(&cp->server);
 
+    string_deinit(&cp->failover);
+    
     log_debug(LOG_VVERB, "deinit conf pool %p", cp);
 }
 
@@ -1471,10 +1480,10 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     struct string *value;
     struct conf_server *field;
     uint8_t *p, *q, *start;
-    uint8_t *pname, *addr, *port, *weight, *name;
-    uint32_t k, delimlen, pnamelen, addrlen, portlen, weightlen, namelen;
+    uint8_t *pname, *addr, *port, *weight, *name, *rstart;
+    uint32_t k, delimlen, pnamelen, addrlen, portlen, weightlen, namelen, rstartlen;
     struct string address;
-    char delim[] = " ::";
+    char delim[] = "^ ::"; /* from right to left */
 
     string_init(&address);
     p = conf;
@@ -1500,47 +1509,50 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     portlen = 0;
     name = NULL;
     namelen = 0;
-
-    delimlen = value->data[0] == '/' ? 2 : 3;
+    rstart = NULL;
+    rstartlen = 0;
+    
+    delimlen = value->data[0] == '/' ? 3 : 4;
 
     for (k = 0; k < sizeof(delim); k++) {
         q = nc_strrchr(p, start, delim[k]);
         if (q == NULL) {
-            if (k == 0) {
-                /*
-                 * name in "hostname:port:weight [name]" format string is
-                 * optional
-                 */
+            if (k == 0 || k == 1) {
+                /* range and name is optional */
                 continue;
-            }
+            } 
             break;
         }
 
         switch (k) {
-        case 0:
-            name = q + 1;
-            namelen = (uint32_t)(p - name + 1);
-            break;
+            case 0:
+                rstart = q + 1;
+                rstartlen = (uint32_t)(p - rstart + 1);
+                break;
+            case 1:
+                name = q + 1;
+                namelen = (uint32_t)(p - name + 1);
+                break;
 
-        case 1:
-            weight = q + 1;
-            weightlen = (uint32_t)(p - weight + 1);
-            break;
+            case 2:
+                weight = q + 1;
+                weightlen = (uint32_t)(p - weight + 1);
+                break;
 
-        case 2:
-            port = q + 1;
-            portlen = (uint32_t)(p - port + 1);
-            break;
+            case 3:
+                port = q + 1;
+                portlen = (uint32_t)(p - port + 1);
+                break;
 
-        default:
-            NOT_REACHED();
+            default:
+                NOT_REACHED();
         }
 
         p = q - 1;
     }
 
     if (k != delimlen) {
-        return "has an invalid \"hostname:port:weight [name]\"or \"/path/unix_socket:weight [name]\" format string";
+        return "has an invalid \"hostname:port:weight [name[:range_start]]\"or \"/path/unix_socket:weight [name]\" format string";
     }
 
     pname = value->data;
@@ -1554,11 +1566,19 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     addr = start;
     addrlen = (uint32_t)(p - start + 1);
 
+    if (rstart != NULL) {
+        field->start = nc_atoi(rstart, rstartlen);
+        if (field->start < 0) {
+            return "has an invalid range start in \"hostname:port:weight [name[:range_start]]\" format string";
+        }
+    }
+    
     field->weight = nc_atoi(weight, weightlen);
     if (field->weight < 0) {
         return "has an invalid weight in \"hostname:port:weight [name]\" format string";
     }
 
+    
     if (value->data[0] != '/') {
         field->port = nc_atoi(port, portlen);
         if (field->port < 0 || !nc_valid_port(field->port)) {
