@@ -22,6 +22,17 @@
 #include <nc_server.h>
 #include <nc_conf.h>
 
+static rstatus_t
+server_dump(void *elem, void *data)
+{
+    struct server *s = elem;
+    
+    log_debug(LOG_DEBUG, "%.*s range [%"PRIu32", %"PRIu32")",
+              s->pname, s->range_start, s->range_end);
+
+    return NC_OK;
+}
+
 void
 server_ref(struct conn *conn, void *owner)
 {
@@ -117,12 +128,22 @@ server_each_set_owner(void *elem, void *data)
     return NC_OK;
 }
 
+static int
+server_compare(const void *lhs, const void *rhs)
+{
+    struct server *ls = lhs, *rs = rhs;
+
+    return (ls->range_start - rs->range_start);
+}
+
+
 rstatus_t
 server_init(struct array *server, struct array *conf_server,
             struct server_pool *sp)
 {
     rstatus_t status;
-    uint32_t nserver;
+    uint32_t nserver, i;
+    struct server *cur, *next;
 
     nserver = array_n(conf_server);
     ASSERT(nserver != 0);
@@ -139,8 +160,32 @@ server_init(struct array *server, struct array *conf_server,
         server_deinit(server);
         return status;
     }
+
     ASSERT(array_n(server) == nserver);
 
+    if (sp->dist_type == DIST_RANGE) {
+        /* sort the servers according to range_start */
+        array_sort(server, server_compare);
+        
+        for (i = 0; i < nserver - 1; i++) {
+            cur = array_get(server, i);
+            next = array_get(server, i + 1);            
+            if (cur->range_start >= next->range_start
+                || cur->range_start >= DIST_RANGE_MAX) {
+                return "invalid range";
+            }
+            /* range is [start, end) */
+            cur->range_end = next->range_start;
+        }
+        
+        cur = array_get(server, nserver - 1);
+        if (cur->range_start > DIST_RANGE_MAX) {
+            return "invalid range";
+        }
+        cur->range_end = DIST_RANGE_MAX;
+    }
+
+    array_each(server, server_dump, NULL);
     /* set server owner */
     status = array_each(server, server_each_set_owner, sp);
     if (status != NC_OK) {
@@ -148,6 +193,7 @@ server_init(struct array *server, struct array *conf_server,
         return status;
     }
 
+    
     log_debug(LOG_DEBUG, "init %"PRIu32" servers in pool %"PRIu32" '%.*s'",
               nserver, sp->idx, sp->name.len, sp->name.data);
 
@@ -615,20 +661,23 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
     ASSERT(key != NULL && keylen != 0);
 
     switch (pool->dist_type) {
-    case DIST_KETAMA:
-        hash = server_pool_hash(pool, key, keylen);
-        idx = ketama_dispatch(pool->continuum, pool->ncontinuum, hash);
-        break;
+        case DIST_KETAMA:
+            hash = server_pool_hash(pool, key, keylen);
+            idx = ketama_dispatch(pool->continuum, pool->ncontinuum, hash);
+            break;
 
-    case DIST_MODULA:
-        hash = server_pool_hash(pool, key, keylen);
-        idx = modula_dispatch(pool->continuum, pool->ncontinuum, hash);
-        break;
+        case DIST_MODULA:
+            hash = server_pool_hash(pool, key, keylen);
+            idx = modula_dispatch(pool->continuum, pool->ncontinuum, hash);
+            break;
 
-    case DIST_RANDOM:
-        idx = random_dispatch(pool->continuum, pool->ncontinuum, 0);
-        break;
-
+        case DIST_RANDOM:
+            idx = random_dispatch(pool->continuum, pool->ncontinuum, 0);
+            break;
+        case DIST_RANGE:
+            hash = server_pool_hash(pool, key, keylen);
+            idx = range_dispatch(pool->continuum, pool->ncontinuum, hash);
+            break;
     default:
         NOT_REACHED();
         return NULL;
@@ -745,18 +794,20 @@ server_pool_run(struct server_pool *pool)
     ASSERT(array_n(&pool->server) != 0);
 
     switch (pool->dist_type) {
-    case DIST_KETAMA:
-        return ketama_update(pool);
+        case DIST_KETAMA:
+            return ketama_update(pool);
 
-    case DIST_MODULA:
-        return modula_update(pool);
+        case DIST_MODULA:
+            return modula_update(pool);
 
-    case DIST_RANDOM:
-        return random_update(pool);
+        case DIST_RANDOM:
+            return random_update(pool);
 
-    default:
-        NOT_REACHED();
-        return NC_ERROR;
+        case DIST_RANGE:
+            return range_update(pool);
+        default:
+            NOT_REACHED();
+            return NC_ERROR;
     }
 
     return NC_OK;
@@ -802,6 +853,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
     /* update server pool continuum */
     status = array_each(server_pool, server_pool_each_run, NULL);
     if (status != NC_OK) {
+        log_error("server: failed to run server");
         server_pool_deinit(server_pool);
         return status;
     }
@@ -840,3 +892,4 @@ server_pool_deinit(struct array *server_pool)
 
     log_debug(LOG_DEBUG, "deinit %"PRIu32" pools", npool);
 }
+

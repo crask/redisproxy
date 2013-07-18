@@ -14,7 +14,7 @@ beta:
   listen: 127.0.0.1:22122
   hash: fnv1a_64
   hash_tag: "{}"
-  distribution: ketama
+  distribution: range
   auto_eject_hosts: false
   timeout: 400
   redis: true
@@ -31,7 +31,6 @@ gamma:
   distribution: ketama
   timeout: 400
   backlog: 1024
-  preconnect: true
   auto_eject_hosts: true
   server_retry_timeout: 2000
   server_failure_limit: 3

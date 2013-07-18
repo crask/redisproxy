@@ -160,6 +160,9 @@ conf_server_each_transform(void *elem, void *data)
     s->next_retry = 0LL;
     s->failure_count = 0;
 
+    s->range_start = cs->start;
+    s->range_end = 0;
+
     log_debug(LOG_VERB, "transform to server %"PRIu32" '%.*s'",
               s->idx, s->pname.len, s->pname.data);
 
@@ -290,6 +293,7 @@ conf_pool_each_transform(void *elem, void *data)
 
     status = server_init(&sp->server, &cp->server, sp);
     if (status != NC_OK) {
+        log_error("conf: failed to init server");
         return status;
     }
 
@@ -1556,7 +1560,9 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     }
 
     pname = value->data;
-    pnamelen = namelen > 0 ? value->len - (namelen + 1) : value->len;
+    pnamelen = rstartlen > 0 ? value->len - (rstartlen + 1 + namelen + 1) :
+            namelen > 0 ? value->len - (namelen + 1) : value->len;
+    
     status = string_copy(&field->pname, pname, pnamelen);
     if (status != NC_OK) {
         array_pop(a);
