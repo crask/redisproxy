@@ -86,6 +86,8 @@ struct server {
 
     uint32_t range_start;               /* range start */
     uint32_t range_end;                 /* range end */
+
+    unsigned cold:1;                    /* server is cold? */
 };
 
 struct server_pool {

@@ -432,8 +432,8 @@ static void
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
-    struct conn *s_conn;
-    struct server_pool *pool;
+    struct conn *s_conn, *failover_conn;
+    struct server_pool *pool, *failover_pool;
     uint8_t *key;
     uint32_t keylen;
 
@@ -472,10 +472,21 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         keylen = (uint32_t)(msg->key_end - msg->key_start);
     }
 
-    s_conn = server_pool_conn(ctx, c_conn->owner, key, keylen);
+    s_conn = server_pool_conn(ctx, pool, key, keylen);
     if (s_conn == NULL) {
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        failover_pool = pool->failover;
+        if (failover_pool != NULL) {
+            failover_conn = server_pool_conn(ctx, failover_pool, key, keylen);
+            if (failover_conn == NULL) {
+                req_forward_error(ctx, c_conn, msg);
+                return;
+            }
+            log_debug(LOG_VERB, "use failover conn");
+            s_conn = failover_conn;
+        } else {
+            req_forward_error(ctx, c_conn, msg);
+            return;
+        }
     }
     ASSERT(!s_conn->client && !s_conn->proxy);
 
