@@ -788,6 +788,28 @@ server_pool_each_set_owner(void *elem, void *data)
     return NC_OK;
 }
 
+static rstatus_t
+server_pool_each_set_failover(void *elem, void *data)
+{
+    struct server_pool *sp = elem, *pool;
+    struct array * sp_array = data;
+    uint32_t sp_index;
+    
+    if (!string_empty(&sp->failover_name)) {
+        for (sp_index = 0; sp_index < array_n(sp_array); sp_index++) {
+            pool = array_get(sp_array, sp_index);
+
+            if (string_compare(&pool->name, &sp->failover_name) == 0) {
+                sp->failover = pool;
+                return NC_OK;
+            }
+        }
+        return NC_ERROR;
+    }
+    
+    return NC_OK;
+}
+
 rstatus_t
 server_pool_run(struct server_pool *pool)
 {
@@ -838,6 +860,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
     /* transform conf pool to server pool */
     status = array_each(conf_pool, conf_pool_each_transform, server_pool);
     if (status != NC_OK) {
+        log_error("server: failed to transform conf");
         server_pool_deinit(server_pool);
         return status;
     }
@@ -850,6 +873,14 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
+    /* set failover pool for each server pool */
+    status = array_each(server_pool, server_pool_each_set_failover, server_pool);
+    if (status != NC_OK) {
+        log_error("server: failed to set failover pool");
+        server_pool_deinit(server_pool);
+        return status;
+    }
+    
     /* update server pool continuum */
     status = array_each(server_pool, server_pool_each_run, NULL);
     if (status != NC_OK) {

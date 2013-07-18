@@ -291,6 +291,8 @@ conf_pool_each_transform(void *elem, void *data)
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
+    sp->failover_name = cp->failover;
+    
     status = server_init(&sp->server, &cp->server, sp);
     if (status != NC_OK) {
         log_error("conf: failed to init server");
