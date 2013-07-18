@@ -21,7 +21,7 @@
 #include <nc_core.h>
 #include <nc_server.h>
 
-#define DIST_RANGE_MAX 1<<16
+#define DIST_RANGE_MAX (1<<16)
 
 #define HASH_CODEC(ACTION)                      \
     ACTION( HASH_ONE_AT_A_TIME, one_at_a_time ) \

@@ -73,5 +73,7 @@ range_dispatch(struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
             right = middle;
         }
     }
+    log_debug(LOG_VVERB, "dispatch hash %"PRIu32" to index %"PRIu32,
+              hash, left->index);
     return left->index;
 }
