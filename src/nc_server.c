@@ -220,6 +220,13 @@ server_conn(struct server *server)
     struct server_pool *pool;
     struct conn *conn;
 
+    /*
+     * If next_retry <= now, it must have been reset to 0 by server_pool_update
+     */
+    if (server->next_retry > 0) {
+        return NULL;
+    }
+    
     pool = server->owner;
 
     /*
@@ -680,9 +687,10 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
             hash ^= server_pool_hash(pool, pool->name.data, pool->name.len);
             idx = range_dispatch(pool->continuum, pool->ncontinuum, hash);
             break;
-    default:
-        NOT_REACHED();
-        return NULL;
+
+        default:
+            NOT_REACHED();
+            return NULL;
     }
     ASSERT(idx < array_n(&pool->server));
 
@@ -704,23 +712,27 @@ server_pool_conn(struct context *ctx, struct server_pool *pool, uint8_t *key,
 
     status = server_pool_update(pool);
     if (status != NC_OK) {
+        log_debug(LOG_VERB, "server: failed to update pool");
         return NULL;
     }
 
     /* from a given {key, keylen} pick a server from pool */
     server = server_pool_server(pool, key, keylen);
     if (server == NULL) {
+        log_debug(LOG_VERB, "server: failed to pick server");
         return NULL;
     }
 
     /* pick a connection to a given server */
     conn = server_conn(server);
     if (conn == NULL) {
+        log_debug(LOG_VERB, "server: failed to pick conn");
         return NULL;
     }
 
     status = server_connect(ctx, server, conn);
     if (status != NC_OK) {
+        log_debug(LOG_VERB, "server: failed to connect");
         server_close(ctx, conn);
         return NULL;
     }
