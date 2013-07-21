@@ -406,7 +406,7 @@ server_close(struct context *ctx, struct conn *conn)
          * 1. request is tagged as noreply or,
          * 2. client has already closed its connection
          */
-        if (msg->swallow || msg->noreply) {
+        if (msg->swallow || msg->noreply || msg->owner == NULL) {
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
             req_put(msg);
@@ -436,7 +436,7 @@ server_close(struct context *ctx, struct conn *conn)
         /* dequeue the message (request) from server outq */
         conn->dequeue_outq(ctx, conn, msg);
 
-        if (msg->swallow) {
+        if (msg->swallow || msg->owner == NULL) {
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
             req_put(msg);

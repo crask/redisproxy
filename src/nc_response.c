@@ -214,6 +214,15 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
 
     msg->pre_coalesce(msg);
 
+    /* handle probe message sent from proxy */
+    if (pmsg->owner == NULL) {
+        log_debug(LOG_VERB, "handle probe");
+        pmsg->handle_probe(pmsg, msg);
+        
+        req_put(pmsg);
+        return;
+    }
+    
     c_conn = pmsg->owner;
     ASSERT(c_conn->client && !c_conn->proxy);
 
