@@ -102,6 +102,10 @@ static struct command conf_commands[] = {
       conf_set_string,
       offsetof(struct conf_pool, failover) },
 
+    { string("server_probe_timeout"),
+      conf_set_num,
+      offsetof(struct conf_pool, server_probe_timeout) },
+
     null_command
 };
 
@@ -165,6 +169,8 @@ conf_server_each_transform(void *elem, void *data)
 
     s->cold = 0;
 
+    s->next_probe = 0LL;
+    
     log_debug(LOG_VERB, "transform to server %"PRIu32" '%.*s'",
               s->idx, s->pname.len, s->pname.data);
 
@@ -199,7 +205,8 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->server_connections = CONF_UNSET_NUM;
     cp->server_retry_timeout = CONF_UNSET_NUM;
     cp->server_failure_limit = CONF_UNSET_NUM;
-
+    cp->server_probe_timeout = CONF_UNSET_NUM;
+    
     array_null(&cp->server);
 
     cp->valid = 0;
@@ -290,6 +297,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->server_connections = (uint32_t)cp->server_connections;
     sp->server_retry_timeout = (int64_t)cp->server_retry_timeout * 1000LL;
     sp->server_failure_limit = (uint32_t)cp->server_failure_limit;
+    sp->server_probe_timeout = (uint32_t)cp->server_probe_timeout * 1000LL;
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
@@ -1251,6 +1259,10 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
         cp->server_failure_limit = CONF_DEFAULT_SERVER_FAILURE_LIMIT;
     }
 
+    if (cp->server_probe_timeout == CONF_UNSET_NUM) {
+        cp->server_probe_timeout = CONF_DEFAULT_SERVER_PROBE_TIMEOUT;
+    }
+    
     status = conf_validate_server(cf, cp);
     if (status != NC_OK) {
         return status;

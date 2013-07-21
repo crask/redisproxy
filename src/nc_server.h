@@ -88,6 +88,8 @@ struct server {
     uint32_t range_end;                 /* range end */
 
     unsigned cold:1;                    /* server is cold? */
+
+    int64_t next_probe;                 /* next probe time in usec */
 };
 
 struct server_pool {
@@ -127,6 +129,9 @@ struct server_pool {
 
     struct string      failover_name;        /* failover pool name */
     struct server_pool *failover;            /* failover pool */
+
+    int64_t            server_probe_timeout; /* server probe timeout */
+                                
 };
 
 void server_ref(struct conn *conn, void *owner);

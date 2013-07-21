@@ -938,3 +938,96 @@ server_pool_deinit(struct array *server_pool)
     log_debug(LOG_DEBUG, "deinit %"PRIu32" pools", npool);
 }
 
+
+static rstatus_t
+server_each_probe(void *elem, void *data)
+{
+    rstatus_t status;
+    struct server *server = elem;
+    struct server_pool *pool = data;
+    struct conn *conn;
+    struct msg *msg;
+    int64_t now, next;
+    
+    now = nc_usec_now();
+    if (now < 0) {
+        log_debug(LOG_VERB, "probe now");
+        return NC_ERROR;
+    }
+
+    if (server->next_probe > now) {
+        log_debug(LOG_VERB, "probe next time");
+        return NC_OK;
+    }
+    
+    log_debug(LOG_VERB, "probe");
+    
+    server->next_probe = now + pool->server_probe_timeout;
+
+    conn = server_conn(server);
+    if (conn == NULL) {
+        log_debug(LOG_VERB, "probe conn");
+        return NC_ERROR;
+    }
+
+    if (!(conn->connecting || conn->connected)) {
+        return NC_OK;
+    }
+    
+    
+    /* create a message probe message */
+    msg = msg_build_probe(conn->redis);
+    if (msg == NULL) {
+        log_debug(LOG_VERB, "probe build");
+        return NC_ERROR;
+    }
+    
+    if (TAILQ_EMPTY(&conn->imsg_q)) {
+        status = event_add_out(pool->ctx->evb, conn);
+        if (status != NC_OK) {
+            req_put(msg);
+            conn->err = errno;
+            log_debug(LOG_VERB, "probe event error");
+            return NC_ERROR;
+        }
+    }
+
+    conn->enqueue_inq(pool->ctx, conn, msg);
+
+    log_debug(LOG_VERB, "send probe to s %d", conn->sd);
+    return NC_OK;
+}
+
+static rstatus_t
+server_pool_each_probe(void *elem, void *data)
+{
+    rstatus_t status;
+    struct server_pool *pool = elem;
+    struct array *servers;
+
+    servers = &pool->server;
+    
+    status = array_each(servers, server_each_probe, pool);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    return NC_OK;
+}
+
+
+rstatus_t
+server_pool_probe(struct context *ctx)
+{
+    rstatus_t status;
+    struct array *pools;
+
+    pools = &ctx->pool;
+
+    status = array_each(pools, server_pool_each_probe, NULL);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    return NC_OK;
+}
