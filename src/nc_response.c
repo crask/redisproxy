@@ -89,8 +89,7 @@ rsp_recv_next(struct context *ctx, struct conn *conn, bool alloc)
     struct msg *msg;
 
     ASSERT(!conn->client && !conn->proxy);
-    ASSERT(!conn->connecting);
-
+ 
     if (conn->eof) {
         msg = conn->rmsg;
 
