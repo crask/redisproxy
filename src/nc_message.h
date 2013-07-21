@@ -23,6 +23,8 @@
 typedef void (*msg_parse_t)(struct msg *);
 typedef rstatus_t (*msg_post_splitcopy_t)(struct msg *);
 typedef void (*msg_coalesce_t)(struct msg *r);
+typedef rstatus_t (*msg_build_probe_t)(struct msg *);
+typedef void (*msg_handle_probe_t)(struct msg *, struct msg *);
 
 typedef enum msg_parse_result {
     MSG_PARSE_OK,                         /* parsing ok */
@@ -46,6 +48,7 @@ typedef enum msg_type {
     MSG_REQ_MC_INCR,                      /* memcache arithmetic request */
     MSG_REQ_MC_DECR,
     MSG_REQ_MC_QUIT,                      /* memcache quit request */
+    MSG_REQ_MC_STATS,                     /* memcache stats request */
     MSG_RSP_MC_NUM,                       /* memcache arithmetic response */
     MSG_RSP_MC_STORED,                    /* memcache cas and storage response */
     MSG_RSP_MC_NOT_STORED,
@@ -57,6 +60,7 @@ typedef enum msg_type {
     MSG_RSP_MC_ERROR,                     /* memcache error responses */
     MSG_RSP_MC_CLIENT_ERROR,
     MSG_RSP_MC_SERVER_ERROR,
+    MSG_RSP_MC_STATS,                     /* memcache stats response */
     MSG_REQ_REDIS_DEL,                    /* redis commands - keys */
     MSG_REQ_REDIS_EXISTS,
     MSG_REQ_REDIS_EXPIRE,
@@ -147,11 +151,13 @@ typedef enum msg_type {
     MSG_REQ_REDIS_ZUNIONSTORE,
     MSG_REQ_REDIS_EVAL,                   /* redis requests - eval */
     MSG_REQ_REDIS_EVALSHA,
+    MSG_REQ_REDIS_INFO,                   /* redis info request */
     MSG_RSP_REDIS_STATUS,                 /* redis response */
     MSG_RSP_REDIS_ERROR,
     MSG_RSP_REDIS_INTEGER,
     MSG_RSP_REDIS_BULK,
     MSG_RSP_REDIS_MULTIBULK,
+    MSG_RSP_REDIS_INFO,                   /* redis info response */
     MSG_SENTINEL
 } msg_type_t;
 
@@ -180,7 +186,9 @@ struct msg {
     msg_post_splitcopy_t post_splitcopy;  /* message post-split copy */
     msg_coalesce_t       pre_coalesce;    /* message pre-coalesce */
     msg_coalesce_t       post_coalesce;   /* message post-coalesce */
-
+    msg_build_probe_t    build_probe;     /* message build probe */
+    msg_handle_probe_t   handle_probe;    /* message handle probe */
+    
     msg_type_t           type;            /* message type */
 
     uint8_t              *key_start;      /* key start */
@@ -229,6 +237,7 @@ void msg_dump(struct msg *msg);
 bool msg_empty(struct msg *msg);
 rstatus_t msg_recv(struct context *ctx, struct conn *conn);
 rstatus_t msg_send(struct context *ctx, struct conn *conn);
+struct msg *msg_build_probe(bool redis);
 
 struct msg *req_get(struct conn *conn);
 void req_put(struct msg *msg);

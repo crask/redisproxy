@@ -21,6 +21,8 @@
 #include <nc_core.h>
 #include <nc_proto.h>
 
+#define REDIS_PROBE_MESSAGE "*1\r\n$4\r\ninfo\r\n"
+
 /*
  * Return true, if the redis command accepts no arguments, otherwise
  * return false
@@ -2126,4 +2128,37 @@ redis_post_coalesce(struct msg *r)
     default:
         NOT_REACHED();
     }
+}
+
+rstatus_t
+redis_build_probe(struct msg *r)
+{
+    struct mbuf *mbuf;
+    size_t msize, msglen;
+
+    ASSERT(STAILQ_LAST(&r->mhdr, mbuf, next) == NULL);
+    
+    mbuf = mbuf_get();
+    if (mbuf == NULL) {
+        return NC_ENOMEM;
+    }
+    mbuf_insert(&r->mhdr, mbuf);
+    r->pos = mbuf->pos;
+
+    msize = mbuf_size(mbuf);
+    msglen = strlen(REDIS_PROBE_MESSAGE);
+    
+    ASSERT(msize >= msglen);
+    
+    mbuf_copy(mbuf, REDIS_PROBE_MESSAGE, msglen);
+    r->mlen += (uint32_t)msglen;
+    
+    return NC_OK;    
+}
+
+void
+redis_handle_probe(struct msg *req, struct msg *rsp)
+{
+    
+    
 }

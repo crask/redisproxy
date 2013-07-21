@@ -228,6 +228,7 @@ ferror:
 void
 req_server_enqueue_imsgq(struct context *ctx, struct conn *conn, struct msg *msg)
 {
+    ASSERT(msg != NULL);
     ASSERT(msg->request);
     ASSERT(!conn->client && !conn->proxy);
 
@@ -264,6 +265,7 @@ req_server_dequeue_imsgq(struct context *ctx, struct conn *conn, struct msg *msg
 void
 req_client_enqueue_omsgq(struct context *ctx, struct conn *conn, struct msg *msg)
 {
+    ASSERT(msg != NULL);
     ASSERT(msg->request);
     ASSERT(conn->client && !conn->proxy);
 

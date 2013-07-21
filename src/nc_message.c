@@ -284,6 +284,8 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = redis_post_splitcopy;
         msg->pre_coalesce = redis_pre_coalesce;
         msg->post_coalesce = redis_post_coalesce;
+        msg->build_probe = redis_build_probe;
+        msg->handle_probe = redis_handle_probe;
     } else {
         if (request) {
             msg->parser = memcache_parse_req;
@@ -294,10 +296,12 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = memcache_post_splitcopy;
         msg->pre_coalesce = memcache_pre_coalesce;
         msg->post_coalesce = memcache_post_coalesce;
+        msg->build_probe = memcache_build_probe;
+        msg->handle_probe = memcache_handle_probe;
     }
 
     log_debug(LOG_VVERB, "get msg %p id %"PRIu64" request %d owner sd %d",
-              msg, msg->id, msg->request, conn->sd);
+              msg, msg->id, msg->request, conn != NULL ? conn->sd : -1);
 
     return msg;
 }
@@ -602,6 +606,7 @@ msg_parse(struct context *ctx, struct conn *conn, struct msg *msg)
     return conn->err != 0 ? NC_ERROR : status;
 }
 
+
 static rstatus_t
 msg_recv_chain(struct context *ctx, struct conn *conn, struct msg *msg)
 {
@@ -653,6 +658,25 @@ msg_recv_chain(struct context *ctx, struct conn *conn, struct msg *msg)
     }
 
     return NC_OK;
+}
+
+struct msg*
+msg_build_probe(bool redis)
+{
+    rstatus_t status;
+    struct msg *msg;
+
+    msg = msg_get(NULL, true, redis);
+    if (msg == NULL) {
+        return NULL;
+    }
+    
+    status = msg->build_probe(msg);
+    if (status != NC_OK) {
+        return NULL;
+    }
+
+    return msg;
 }
 
 rstatus_t

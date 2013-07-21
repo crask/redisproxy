@@ -232,6 +232,14 @@ core_error(struct context *ctx, struct conn *conn)
 static void
 core_timeout(struct context *ctx)
 {
+    rstatus_t status;
+    log_debug(LOG_VERB, "probe timeout");
+
+    status = server_pool_probe(ctx);
+    if (status != NC_OK) {
+        log_debug(LOG_WARN, "failed to probe servers");
+    }
+
     for (;;) {
         struct msg *msg;
         struct conn *conn;
@@ -240,7 +248,7 @@ core_timeout(struct context *ctx)
         msg = msg_tmo_min();
         if (msg == NULL) {
             ctx->timeout = ctx->max_timeout;
-            return;
+            break;
         }
 
         /* skip over req that are in-error or done */
@@ -262,7 +270,7 @@ core_timeout(struct context *ctx)
         if (now < then) {
             int delta = (int)(then - now);
             ctx->timeout = MIN(delta, ctx->max_timeout);
-            return;
+            break;
         }
 
         log_debug(LOG_INFO, "req %"PRIu64" on s %d timedout", msg->id, conn->sd);
