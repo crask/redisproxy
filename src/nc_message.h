@@ -200,6 +200,9 @@ struct msg {
     uint32_t             vlen;            /* value length (memcache) */
     uint8_t              *end;            /* end marker (memcache) */
 
+    struct array         keys ;           /* array of stat keys */
+    struct array         vals;            /* array of stat vals */
+    
     uint8_t              *narg_start;     /* narg start (redis) */
     uint8_t              *narg_end;       /* narg end (redis) */
     uint32_t             narg;            /* # arguments (redis) */

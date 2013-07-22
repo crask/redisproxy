@@ -186,6 +186,7 @@ msg_tmo_delete(struct msg *msg)
 static struct msg *
 _msg_get(void)
 {
+    rstatus_t status;
     struct msg *msg;
 
     if (!TAILQ_EMPTY(&free_msgq)) {
@@ -203,6 +204,14 @@ _msg_get(void)
     }
 
 done:
+    status = array_init(&msg->keys, DEFAULT_STATS_NUM, sizeof(struct string));
+    if (status != NC_OK) {
+        return NULL;
+    }
+    status = array_init(&msg->vals, DEFAULT_STATS_NUM, sizeof(struct string));
+    if (status != NC_OK) {
+        return NULL;
+    }
     /* c_tqe, s_tqe, and m_tqe are left uninitialized */
     msg->id = ++msg_id;
     msg->peer = NULL;
@@ -229,7 +238,10 @@ done:
 
     msg->key_start = NULL;
     msg->key_end = NULL;
-
+    
+    msg->val_start = NULL;
+    msg->val_end = NULL;
+        
     msg->vlen = 0;
     msg->end = NULL;
 
@@ -346,6 +358,10 @@ msg_free(struct msg *msg)
     ASSERT(STAILQ_EMPTY(&msg->mhdr));
 
     log_debug(LOG_VVERB, "free msg %p id %"PRIu64"", msg, msg->id);
+    
+    array_deinit(&msg->keys);
+    array_deinit(&msg->vals);
+
     nc_free(msg);
 }
 
@@ -359,6 +375,9 @@ msg_put(struct msg *msg)
         mbuf_remove(&msg->mhdr, mbuf);
         mbuf_put(mbuf);
     }
+    
+    array_reset(&msg->keys);
+    array_reset(&msg->vals);
 
     nfree_msgq++;
     TAILQ_INSERT_HEAD(&free_msgq, msg, m_tqe);
@@ -404,6 +423,7 @@ msg_deinit(void)
     for (msg = TAILQ_FIRST(&free_msgq); msg != NULL;
          msg = nmsg, nfree_msgq--) {
         ASSERT(nfree_msgq > 0);
+        
         nmsg = TAILQ_NEXT(msg, m_tqe);
         msg_free(msg);
     }
