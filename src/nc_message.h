@@ -194,6 +194,9 @@ struct msg {
     uint8_t              *key_start;      /* key start */
     uint8_t              *key_end;        /* key end */
 
+    uint8_t              *val_start;      /* inline value start */
+    uint8_t              *val_end;        /* inline value end */
+    
     uint32_t             vlen;            /* value length (memcache) */
     uint8_t              *end;            /* end marker (memcache) */
 

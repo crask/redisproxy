@@ -33,6 +33,13 @@
 #define MEMCACHE_MAX_KEY_LENGTH 250
 
 #define MEMCACHE_PROBE_MESSAGE "stats\r\n"
+
+static void
+memcache_update_stat(uint8_t *key, size_t keylen, uint8_t *val, size_t vallen)
+{
+    log_debug(LOG_INFO, "%.*s: %.*s", keylen, key, vallen, val);
+}
+
 /*
  * Return true, if the memcache command is a storage command, otherwise
  * return false
@@ -736,6 +743,8 @@ memcache_parse_rsp(struct msg *r)
         SW_RUNTO_CRLF,
         SW_CRLF,
         SW_ALMOST_DONE,
+        SW_SPACES_BEFORE_INLINE_VAL,        
+        SW_INLINE_VAL,
         SW_SENTINEL
     } state;
 
@@ -809,7 +818,15 @@ memcache_parse_rsp(struct msg *r)
                     }
 
                     break;
-
+                    
+                case 4:
+                    if (str4cmp(m, 'S', 'T', 'A', 'T')) {
+                        r->type = MSG_RSP_MC_STATS;
+                        break;
+                    }
+                    
+                    break;
+                    
                 case 5:
                     if (str5cmp(m, 'V', 'A', 'L', 'U', 'E')) {
                         /*
@@ -895,6 +912,7 @@ memcache_parse_rsp(struct msg *r)
                     break;
 
                 case MSG_RSP_MC_VALUE:
+                case MSG_RSP_MC_STATS:
                     state = SW_SPACES_BEFORE_KEY;
                     break;
 
@@ -940,11 +958,32 @@ memcache_parse_rsp(struct msg *r)
                 }
                 r->key_end = p;
                 r->token = NULL;
-                state = SW_SPACES_BEFORE_FLAGS;
+                if (r->type != MSG_RSP_MC_STATS) {
+                    state = SW_SPACES_BEFORE_FLAGS;
+                } else {
+                    state = SW_SPACES_BEFORE_INLINE_VAL;
+                }
             }
 
             break;
-
+        case SW_INLINE_VAL:
+            if (r->token == NULL) {
+                r->token = p;
+                r->val_start = p;
+            }
+            
+            if (ch == CR) {
+                r->val_end = p;
+                r->token = NULL;
+                state = SW_VAL_LF;
+                memcache_update_stat(r->key_start, 
+                                     (size_t)(r->key_end - r->key_start),
+                                     r->val_start,
+                                     (size_t)(r->val_end - r->val_start));
+                    
+            }
+            
+            break;
         case SW_SPACES_BEFORE_FLAGS:
             if (ch != ' ') {
                 if (!isdigit(ch)) {
@@ -954,6 +993,14 @@ memcache_parse_rsp(struct msg *r)
                 p = p - 1; /* go back by 1 byte */
             }
 
+            break;
+            
+        case SW_SPACES_BEFORE_INLINE_VAL:
+            if (ch != ' ') {
+                state = SW_INLINE_VAL;
+                p = p - 1;
+            }
+            
             break;
 
         case SW_FLAGS:
@@ -1042,7 +1089,11 @@ memcache_parse_rsp(struct msg *r)
         case SW_VAL_LF:
             switch (ch) {
             case LF:
-                state = SW_END;
+                if (r->type != MSG_RSP_MC_STATS) {
+                    state = SW_END;
+                } else {
+                    state = SW_RSP_STR;
+                }
                 break;
 
             default:
@@ -1336,3 +1387,5 @@ void
 memcache_handle_probe(struct msg *req, struct msg *rsp)
 {
 }       
+
+
