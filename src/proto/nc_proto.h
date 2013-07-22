@@ -20,6 +20,8 @@
 
 #include <nc_core.h>
 
+#define DEFAULT_STATS_NUM 64
+
 #ifdef NC_LITTLE_ENDIAN
 
 #define str4cmp(m, c0, c1, c2, c3)                                                          \
@@ -137,6 +139,18 @@
 #define str16icmp(m, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15)  \
     (str15icmp(m, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14) &&       \
      (m[15] == c15 || m[15] == (c15 ^ 0x20)))
+
+
+struct memcache_stats {
+    uint32_t uptime;
+    uint64_t cmd_get;
+    uint64_t get_hits;
+};
+
+
+struct redis_stats {
+    struct string role;
+};
 
 void memcache_parse_req(struct msg *r);
 void memcache_parse_rsp(struct msg *r);

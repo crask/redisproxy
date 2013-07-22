@@ -90,6 +90,8 @@ struct server {
     unsigned cold:1;                    /* server is cold? */
 
     int64_t next_probe;                 /* next probe time in usec */
+    
+    void *stats;                         /* stats data */
 };
 
 struct server_pool {

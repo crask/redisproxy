@@ -21,6 +21,7 @@
 #include <nc_core.h>
 #include <nc_server.h>
 #include <nc_conf.h>
+#include <nc_proto.h>
 
 static rstatus_t
 server_dump(void *elem, void *data)
@@ -128,6 +129,26 @@ server_each_set_owner(void *elem, void *data)
     return NC_OK;
 }
 
+static rstatus_t
+server_each_set_stats(void *elem, void *data)
+{
+    struct server *s = elem;
+    struct server_pool *sp = data;
+
+    if (sp->redis) {
+        s->stats = nc_zalloc(sizeof(struct redis_stats));
+    } else {
+        s->stats = nc_zalloc(sizeof(struct memcache_stats));
+    }
+
+    if (s->stats == NULL) {
+        return NC_ERROR;
+    }        
+    
+    return NC_OK;
+}
+
+
 static int
 server_compare(const void *lhs, const void *rhs)
 {
@@ -193,6 +214,11 @@ server_init(struct array *server, struct array *conf_server,
         return status;
     }
 
+    status = array_each(server, server_each_set_stats, sp);
+    if (status != NC_OK) {
+        server_deinit(server);
+        return status;
+    }
     
     log_debug(LOG_DEBUG, "init %"PRIu32" servers in pool %"PRIu32" '%.*s'",
               nserver, sp->idx, sp->name.len, sp->name.data);
