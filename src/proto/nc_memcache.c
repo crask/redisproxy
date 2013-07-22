@@ -18,6 +18,7 @@
 #include <ctype.h>
 
 #include <nc_core.h>
+#include <nc_server.h>
 #include <nc_proto.h>
 
 /*
@@ -34,10 +35,95 @@
 
 #define MEMCACHE_PROBE_MESSAGE "stats\r\n"
 
-static void
-memcache_update_stat(uint8_t *key, size_t keylen, uint8_t *val, size_t vallen)
+#define STATS_OK (void *) NULL
+
+
+
+struct stats_command {
+    struct string name;
+    char *(*set)(struct memcache_stats *s, struct stats_command *cmd, void *val);
+    int offset;
+};
+
+char *stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *val)
 {
-    log_debug(LOG_INFO, "%.*s: %.*s", keylen, key, vallen, val);
+    uint8_t *p;
+    uint32_t num, *np;
+    struct string *value = val;
+    
+    p = s;
+    np = (uint32_t *)(p + cmd->offset);
+    
+    num = nc_atoi(value->data, value->len);
+    if (num < 0) {
+        return "is not a number";
+    }
+
+    *np = num;
+    return STATS_OK;
+}
+
+char *stats_set_ulong(struct memcache_stats *s, struct stats_command *cmd, void *val)
+{
+    uint8_t *p;
+    uint64_t num, *np;
+    struct string *value = val;
+    
+    p = s;
+    np = (uint64_t *)(p + cmd->offset);
+    
+    num = nc_atoi(value->data, value->len);
+    if (num < 0) {
+        return "is not a number";
+    }
+
+    *np = num;
+    return STATS_OK;
+}
+
+#define null_stats_command { null_string, NULL, 0 }
+
+static struct stats_command commands[] = {
+    { string("uptime"),
+      stats_set_uint,
+      offsetof(struct memcache_stats, uptime) },
+
+    { string("cmd_get"),
+      stats_set_ulong,
+      offsetof(struct memcache_stats, cmd_get) },
+    
+    { string("get_hits"),
+      stats_set_ulong,
+      offsetof(struct memcache_stats, get_hits) },
+    
+    null_stats_command
+};
+
+
+static rstatus_t
+memcache_update_stat(struct memcache_stats *s, struct string *k, struct string *v)
+{
+    struct stats_command *cmd;
+    struct memcache_stats *stats;
+
+    ASSERT(s != NULL);
+    
+    for (cmd = commands; cmd->name.len != 0; cmd++) {
+        char *rv;
+
+        if (string_compare(k, &cmd->name) != 0) {
+            continue;
+        }
+        
+        rv = cmd->set(s, cmd, v);
+                
+        if (rv != STATS_OK) {
+            log_warn("stats: \"%.*s\" %s", k->len, k->data, rv);
+            return NC_ERROR;
+        }
+        
+        return NC_OK;
+    }
 }
 
 /*
@@ -723,9 +809,11 @@ error:
 void
 memcache_parse_rsp(struct msg *r)
 {
+    rstatus_t status;
     struct mbuf *b;
     uint8_t *p, *m;
     uint8_t ch;
+    struct string *key, *val;
     enum {
         SW_START,
         SW_RSP_NUM,
@@ -961,6 +1049,10 @@ memcache_parse_rsp(struct msg *r)
                 if (r->type != MSG_RSP_MC_STATS) {
                     state = SW_SPACES_BEFORE_FLAGS;
                 } else {
+                    key = array_push(&r->keys);
+                    key->len = r->key_end - r->key_start;
+                    key->data = r->key_start;
+
                     state = SW_SPACES_BEFORE_INLINE_VAL;
                 }
             }
@@ -975,12 +1067,12 @@ memcache_parse_rsp(struct msg *r)
             if (ch == CR) {
                 r->val_end = p;
                 r->token = NULL;
+
+                val = array_push(&r->vals);
+                val->len = r->val_end - r->val_start;
+                val->data = r->val_start;
+
                 state = SW_VAL_LF;
-                memcache_update_stat(r->key_start, 
-                                     (size_t)(r->key_end - r->key_start),
-                                     r->val_start,
-                                     (size_t)(r->val_end - r->val_start));
-                    
             }
             
             break;
@@ -1386,6 +1478,36 @@ memcache_build_probe(struct msg *r)
 void
 memcache_handle_probe(struct msg *req, struct msg *rsp)
 {
+    rstatus_t status;
+    struct string *key, *val;
+    struct array *keys, *vals;
+    struct server *server;
+    struct memcache_stats *stats;
+    uint32_t i, nkey;
+
+    ASSERT(array_n(&rsp->keys) == array_n(&rsp->vals));
+    ASSERT(rsp->owner->owner != NULL);
+    
+    keys = &rsp->keys;
+    vals = &rsp->vals;
+    nkey = array_n(&rsp->keys);
+    server = rsp->owner->owner;
+    stats = server->stats;
+
+    for (i = 0; i < nkey; i++) {
+        key = array_get(keys, i);
+        val = array_get(vals, i);
+        status = memcache_update_stat(stats, key, val);
+    }
+    
+    log_debug(LOG_VERB,
+              "uptime: %"PRIu32"\n"
+              "cmd_get: %"PRIu64"\n"
+              "get_hits: %"PRIu64"\n",
+              stats->uptime,
+              stats->cmd_get,
+              stats->get_hits
+        );
 }       
 
 
