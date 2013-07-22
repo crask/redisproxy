@@ -56,6 +56,12 @@ array_n(const struct array *a)
     return a->nelem;
 }
 
+static inline void
+array_reset(struct array *a)
+{
+    a->nelem = 0;
+}
+
 struct array *array_create(uint32_t n, size_t size);
 void array_destroy(struct array *a);
 rstatus_t array_init(struct array *a, uint32_t n, size_t size);
