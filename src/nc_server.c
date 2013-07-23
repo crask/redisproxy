@@ -992,7 +992,7 @@ server_pool_deinit(struct array *server_pool)
     log_debug(LOG_DEBUG, "deinit %"PRIu32" pools", npool);
 }
 
-
+/* NOTE: always return NC_OK */
 static rstatus_t
 server_each_probe(void *elem, void *data)
 {
@@ -1009,25 +1009,37 @@ server_each_probe(void *elem, void *data)
     }
 
     if (server->next_probe > now) {
-        log_debug(LOG_VERB, "probe in %"PRIu64"s", (server->next_probe - now)/1000000);
+        log_debug(LOG_VERB, "server: probe in %"PRIu64"s", 
+                  (server->next_probe - now)/1000000);
         return NC_OK;
     }
     
     server->next_probe = now + pool->server_probe_timeout;
 
-    conn = server_conn(server);
-    if (conn == NULL) {
-        return NC_ERROR;
+    status = server_pool_update(pool);
+    if (status != NC_OK) {
+        log_debug(LOG_VERB, "server: failed to update pool");
+        return NC_OK;
     }
 
-    if (!(conn->connecting || conn->connected)) {
+    conn = server_conn(server);
+    if (conn == NULL) {
+        log_debug(LOG_VERB, "server: failed to fetch conn");
+        return NC_OK;
+    }
+
+    status = server_connect(pool->ctx, server, conn);
+    if (status != NC_OK) {
+        log_warn("connect to server '%.*s' failed, ignored: %s",
+                 server->pname.len, server->pname.data, strerror(errno));
+        server_close(pool->ctx, conn);
         return NC_OK;
     }
     
     /* create a message probe message */
     msg = msg_build_probe(conn->redis);
     if (msg == NULL) {
-        return NC_ERROR;
+        return NC_OK;
     }
     
     if (TAILQ_EMPTY(&conn->imsg_q)) {
@@ -1035,13 +1047,15 @@ server_each_probe(void *elem, void *data)
         if (status != NC_OK) {
             req_put(msg);
             conn->err = errno;
-            return NC_ERROR;
+            return NC_OK;
         }
     }
 
     conn->enqueue_inq(pool->ctx, conn, msg);
 
-    log_debug(LOG_VERB, "send probe to s %d", conn->sd);
+    log_debug(LOG_VERB, "probe sent to %.*s", 
+              server->pname.len, server->pname.data);
+    
     return NC_OK;
 }
 
@@ -1059,10 +1073,8 @@ server_pool_each_probe(void *elem, void *data)
     servers = &pool->server;
     
     status = array_each(servers, server_each_probe, pool);
-    if (status != NC_OK) {
-        return status;
-    }
-
+    
+    /* always returns NC_OK */
     return NC_OK;
 }
 
@@ -1076,9 +1088,7 @@ server_pool_probe(struct context *ctx)
     pools = &ctx->pool;
 
     status = array_each(pools, server_pool_each_probe, NULL);
-    if (status != NC_OK) {
-        return status;
-    }
 
+    /* always returns NC_OK */
     return NC_OK;
 }
