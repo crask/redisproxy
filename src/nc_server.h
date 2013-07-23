@@ -84,8 +84,8 @@ struct server {
     int64_t  next_retry;                /* next retry time in usec */
     uint32_t failure_count;             /* # consecutive failures */
 
-    uint32_t range_start;               /* range start */
-    uint32_t range_end;                 /* range end */
+    int range_start;               /* range start */
+    int range_end;                 /* range end */
 
     int64_t next_probe;                 /* next probe time in usec */
     

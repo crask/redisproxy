@@ -170,7 +170,7 @@ server_each_set_stats(void *elem, void *data)
 static int
 server_compare(const void *lhs, const void *rhs)
 {
-    struct server *ls = lhs, *rs = rhs;
+    struct server *ls = (struct server *)lhs, *rs = (struct server *)rhs;
 
     return (ls->range_start - rs->range_start);
 }
@@ -211,7 +211,7 @@ server_init(struct array *server, struct array *conf_server,
             next = array_get(server, i + 1);            
             if (cur->range_start >= next->range_start
                 || cur->range_start >= DIST_RANGE_MAX) {
-                return "invalid range";
+                return NC_ERROR;
             }
             /* range is [start, end) */
             cur->range_end = next->range_start;
@@ -219,7 +219,7 @@ server_init(struct array *server, struct array *conf_server,
         
         cur = array_get(server, nserver - 1);
         if (cur->range_start > DIST_RANGE_MAX) {
-            return "invalid range";
+            return NC_ERROR;
         }
         cur->range_end = DIST_RANGE_MAX;
     }
@@ -1001,7 +1001,7 @@ server_each_probe(void *elem, void *data)
     struct server_pool *pool = data;
     struct conn *conn;
     struct msg *msg;
-    int64_t now, next;
+    int64_t now;
     
     now = nc_usec_now();
     if (now < 0) {

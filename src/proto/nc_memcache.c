@@ -54,10 +54,11 @@ struct stats_command {
 char *stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *val)
 {
     uint8_t *p;
-    uint32_t num, *np;
+    int num;
+    uint32_t *np;
     struct string *value = val;
     
-    p = s;
+    p = (uint8_t *)s;
     np = (uint32_t *)(p + cmd->offset);
     
     num = nc_atoi(value->data, value->len);
@@ -72,12 +73,14 @@ char *stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *
 char *stats_set_ulong(struct memcache_stats *s, struct stats_command *cmd, void *val)
 {
     uint8_t *p;
-    uint64_t num, *np;
+    int num;   
+    uint64_t *np;
     struct string *value = val;
     
-    p = s;
+    p = (uint8_t *)s;
     np = (uint64_t *)(p + cmd->offset);
     
+    /* FIXME: long integer overflow */
     num = nc_atoi(value->data, value->len);
     if (num < 0) {
         return "is not a number";
@@ -114,7 +117,6 @@ static rstatus_t
 memcache_update_stat(struct memcache_stats *s, struct string *k, struct string *v)
 {
     struct stats_command *cmd;
-    struct memcache_stats *stats;
 
     ASSERT(s != NULL);
     
@@ -134,6 +136,8 @@ memcache_update_stat(struct memcache_stats *s, struct string *k, struct string *
         
         return NC_OK;
     }
+
+    return NC_OK;
 }
 
 /*
@@ -819,7 +823,6 @@ error:
 void
 memcache_parse_rsp(struct msg *r)
 {
-    rstatus_t status;
     struct mbuf *b;
     uint8_t *p, *m;
     uint8_t ch;
@@ -1479,7 +1482,7 @@ memcache_build_probe(struct msg *r)
     
     ASSERT(msize >= msglen);
     
-    mbuf_copy(mbuf, MEMCACHE_PROBE_MESSAGE, msglen);
+    mbuf_copy(mbuf, (uint8_t *)MEMCACHE_PROBE_MESSAGE, msglen);
     r->mlen += (uint32_t)msglen;
     
     return NC_OK;

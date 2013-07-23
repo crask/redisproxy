@@ -2154,7 +2154,7 @@ redis_build_probe(struct msg *r)
     
     ASSERT(msize >= msglen);
     
-    mbuf_copy(mbuf, REDIS_PROBE_MESSAGE, msglen);
+    mbuf_copy(mbuf, (uint8_t *)REDIS_PROBE_MESSAGE, msglen);
     r->mlen += (uint32_t)msglen;
     
     return NC_OK;    
