@@ -37,6 +37,12 @@
 
 #define STATS_OK (void *) NULL
 
+struct memcache_stats {
+    uint32_t uptime;
+    uint32_t cold;
+    uint64_t cmd_get;
+    uint64_t get_hits;
+};
 
 
 struct stats_command {
@@ -87,6 +93,10 @@ static struct stats_command commands[] = {
     { string("uptime"),
       stats_set_uint,
       offsetof(struct memcache_stats, uptime) },
+
+    { string("cold"),
+      stats_set_uint,
+      offsetof(struct memcache_stats, cold) },
 
     { string("cmd_get"),
       stats_set_ulong,
@@ -1510,4 +1520,30 @@ memcache_handle_probe(struct msg *req, struct msg *rsp)
         );
 }       
 
+struct memcache_stats *
+memcache_create_stats()
+{
+    struct memcache_stats *stats;
 
+    stats = nc_zalloc(sizeof(*stats));
+    if (stats == NULL) {
+        return NULL;
+    }
+
+    return stats;
+}
+
+void
+memcache_destroy_stats(struct memcache_stats *stats)
+{
+    nc_free(stats);
+}
+
+
+bool
+memcache_cold(struct memcache_stats *stats)
+{
+    ASSERT(stats != NULL);
+
+    return stats->cold == 1;
+}

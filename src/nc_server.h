@@ -87,8 +87,6 @@ struct server {
     uint32_t range_start;               /* range start */
     uint32_t range_end;                 /* range end */
 
-    unsigned cold:1;                    /* server is cold? */
-
     int64_t next_probe;                 /* next probe time in usec */
     
     void *stats;                         /* stats data */
@@ -140,6 +138,7 @@ void server_ref(struct conn *conn, void *owner);
 void server_unref(struct conn *conn);
 int server_timeout(struct conn *conn);
 bool server_active(struct conn *conn);
+bool server_cold(struct conn *conn);
 rstatus_t server_init(struct array *server, struct array *conf_server, struct server_pool *sp);
 void server_deinit(struct array *server);
 struct conn *server_conn(struct server *server);

@@ -167,8 +167,6 @@ conf_server_each_transform(void *elem, void *data)
     s->range_start = cs->start;
     s->range_end = 0;
 
-    s->cold = 0;
-
     s->next_probe = 0LL;
     
     log_debug(LOG_VERB, "transform to server %"PRIu32" '%.*s'",

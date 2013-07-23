@@ -23,6 +23,10 @@
 
 #define REDIS_PROBE_MESSAGE "*1\r\n$4\r\ninfo\r\n"
 
+struct redis_stats {
+    struct string role;
+};
+
 /*
  * Return true, if the redis command accepts no arguments, otherwise
  * return false
@@ -2161,4 +2165,23 @@ redis_handle_probe(struct msg *req, struct msg *rsp)
 {
     
     
+}
+
+struct redis_stats *
+redis_create_stats()
+{
+    struct redis_stats *stats;
+    
+    stats = nc_zalloc(sizeof(*stats));
+    if (stats == NULL) {
+        return NULL;
+    }
+   
+    return stats;
+}
+
+void
+redis_destroy_stats(struct redis_stats *stats)
+{
+    nc_free(stats);
 }

@@ -118,6 +118,24 @@ server_active(struct conn *conn)
     return false;
 }
 
+bool
+server_cold(struct conn *conn)
+{
+    struct server *server;
+    struct server_pool *pool;
+    
+    ASSERT(!conn->client && !conn->proxy);
+    
+    server = conn->owner;
+    pool = server->owner;
+
+    if (!pool->redis) {
+        return memcache_cold(server->stats);
+    } else {
+        return false;
+    }
+}
+
 static rstatus_t
 server_each_set_owner(void *elem, void *data)
 {
@@ -136,13 +154,13 @@ server_each_set_stats(void *elem, void *data)
     struct server_pool *sp = data;
 
     if (sp->redis) {
-        s->stats = nc_zalloc(sizeof(struct redis_stats));
+        s->stats = memcache_create_stats();
     } else {
-        s->stats = nc_zalloc(sizeof(struct memcache_stats));
+        s->stats = redis_create_stats();
     }
 
     if (s->stats == NULL) {
-        return NC_ERROR;
+        return NC_ENOMEM;
     }        
     
     return NC_OK;
@@ -233,9 +251,19 @@ server_deinit(struct array *server)
 
     for (i = 0, nserver = array_n(server); i < nserver; i++) {
         struct server *s;
+        struct server_pool *pool;
 
         s = array_pop(server);
+        pool = s->owner;
+        
+        ASSERT(s->stats != NULL);
         ASSERT(TAILQ_EMPTY(&s->s_conn_q) && s->ns_conn_q == 0);
+
+        if (pool->redis) {
+            redis_destroy_stats(s->stats);
+        } else {
+            memcache_destroy_stats(s->stats);
+        }
     }
     array_deinit(server);
 }
