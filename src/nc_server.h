@@ -130,6 +130,7 @@ struct server_pool {
     struct string      failover_name;        /* failover pool name */
     struct server_pool *failover;            /* failover pool */
 
+    unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
     int64_t            server_probe_timeout; /* server probe timeout */
                                 
 };

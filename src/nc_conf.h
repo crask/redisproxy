@@ -53,6 +53,7 @@
 #define CONF_DEFAULT_SERVER_FAILURE_LIMIT 2
 #define CONF_DEFAULT_SERVER_CONNECTIONS   1
 #define CONF_DEFAULT_KETAMA_PORT          11211
+#define CONF_DEFAULT_AUTO_PROBE_HOSTS     false
 #define CONF_DEFAULT_SERVER_PROBE_TIMEOUT 10 * 1000 /* in msec */
 
 struct conf_listen {
@@ -91,6 +92,7 @@ struct conf_pool {
     struct array       server;          /* servers: conf_server[] */
     unsigned           valid:1;         /* valid? */
     struct string      failover;        /* failover pool name*/
+    int                auto_probe_hosts; /* auto_probe_hosts: */
     int                server_probe_timeout; /* server_probe_timeout: in msec */
 };
 

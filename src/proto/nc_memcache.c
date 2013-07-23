@@ -1478,7 +1478,7 @@ memcache_build_probe(struct msg *r)
     r->pos = mbuf->pos;
 
     msize = mbuf_size(mbuf);
-    msglen = strlen(MEMCACHE_PROBE_MESSAGE);
+    msglen = sizeof(MEMCACHE_PROBE_MESSAGE) - 1;
     
     ASSERT(msize >= msglen);
     
@@ -1515,9 +1515,11 @@ memcache_handle_probe(struct msg *req, struct msg *rsp)
     
     log_debug(LOG_VERB,
               "uptime: %"PRIu32"\n"
+              "cold: %"PRIu32"\n"
               "cmd_get: %"PRIu64"\n"
               "get_hits: %"PRIu64"\n",
               stats->uptime,
+              stats->cold,
               stats->cmd_get,
               stats->get_hits
         );

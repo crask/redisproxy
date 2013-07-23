@@ -2150,7 +2150,7 @@ redis_build_probe(struct msg *r)
     r->pos = mbuf->pos;
 
     msize = mbuf_size(mbuf);
-    msglen = strlen(REDIS_PROBE_MESSAGE);
+    msglen = sizeof(REDIS_PROBE_MESSAGE) - 1;
     
     ASSERT(msize >= msglen);
     

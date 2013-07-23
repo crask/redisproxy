@@ -1005,22 +1005,18 @@ server_each_probe(void *elem, void *data)
     
     now = nc_usec_now();
     if (now < 0) {
-        log_debug(LOG_VERB, "probe now");
         return NC_ERROR;
     }
 
     if (server->next_probe > now) {
-        log_debug(LOG_VERB, "probe next time");
+        log_debug(LOG_VERB, "probe in %"PRIu64"s", (server->next_probe - now)/1000000);
         return NC_OK;
     }
-    
-    log_debug(LOG_VERB, "probe");
     
     server->next_probe = now + pool->server_probe_timeout;
 
     conn = server_conn(server);
     if (conn == NULL) {
-        log_debug(LOG_VERB, "probe conn");
         return NC_ERROR;
     }
 
@@ -1028,11 +1024,9 @@ server_each_probe(void *elem, void *data)
         return NC_OK;
     }
     
-    
     /* create a message probe message */
     msg = msg_build_probe(conn->redis);
     if (msg == NULL) {
-        log_debug(LOG_VERB, "probe build");
         return NC_ERROR;
     }
     
@@ -1041,7 +1035,6 @@ server_each_probe(void *elem, void *data)
         if (status != NC_OK) {
             req_put(msg);
             conn->err = errno;
-            log_debug(LOG_VERB, "probe event error");
             return NC_ERROR;
         }
     }
@@ -1058,6 +1051,10 @@ server_pool_each_probe(void *elem, void *data)
     rstatus_t status;
     struct server_pool *pool = elem;
     struct array *servers;
+
+    if (!pool->auto_probe_hosts) {
+        return NC_OK;
+    }
 
     servers = &pool->server;
     
