@@ -32,9 +32,10 @@
 #define CONF_ROOT_DEPTH     1
 #define CONF_MAX_DEPTH      CONF_ROOT_DEPTH + 1
 
-#define CONF_DEFAULT_ARGS       3
-#define CONF_DEFAULT_POOL       8
-#define CONF_DEFAULT_SERVERS    8
+#define CONF_DEFAULT_ARGS        3
+#define CONF_DEFAULT_POOL        8
+#define CONF_DEFAULT_SERVERS     8
+#define CONF_DEFAULT_DOWNSTREAMS 8
 
 #define CONF_UNSET_NUM  -1
 #define CONF_UNSET_PTR  NULL
@@ -55,6 +56,7 @@
 #define CONF_DEFAULT_KETAMA_PORT          11211
 #define CONF_DEFAULT_AUTO_PROBE_HOSTS     false
 #define CONF_DEFAULT_SERVER_PROBE_TIMEOUT 10 * 1000 /* in msec */
+#define CONF_DEFAULT_VIRTUAL              false
 
 struct conf_listen {
     struct string   pname;   /* listen: as "name:port" */
@@ -72,6 +74,12 @@ struct conf_server {
     int             start;              /* range start */
     struct sockinfo info;               /* connect socket info */
     unsigned        valid:1;            /* valid? */
+};
+
+struct conf_downstream {
+    struct string name;         /* server_pool name */
+    struct string namespace;    /* key namespace */
+    unsigned      valid:1;      /* valid? */
 };
 
 struct conf_pool {
@@ -94,6 +102,8 @@ struct conf_pool {
     struct string      failover;        /* failover pool name*/
     int                auto_probe_hosts; /* auto_probe_hosts: */
     int                server_probe_timeout; /* server_probe_timeout: in msec */
+    int                virtual;         /* virtual server */
+    struct array       downstreams;     /* downstream server pools */
 };
 
 struct conf {
@@ -130,6 +140,7 @@ char *conf_set_bool(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_hash(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_distribution(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_hashtag(struct conf *cf, struct command *cmd, void *conf);
+char *conf_add_downstream(struct conf *cf, struct command *cmd, void *conf);
 
 rstatus_t conf_server_each_transform(void *elem, void *data);
 rstatus_t conf_pool_each_transform(void *elem, void *data);

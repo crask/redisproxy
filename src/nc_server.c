@@ -860,12 +860,12 @@ static rstatus_t
 server_pool_each_set_failover(void *elem, void *data)
 {
     struct server_pool *sp = elem, *pool;
-    struct array * sp_array = data;
-    uint32_t sp_index;
+    struct array *pool_array = data;
+    uint32_t pool_index;
     
     if (!string_empty(&sp->failover_name)) {
-        for (sp_index = 0; sp_index < array_n(sp_array); sp_index++) {
-            pool = array_get(sp_array, sp_index);
+        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+            pool = array_get(pool_array, pool_index);
 
             if (string_compare(&pool->name, &sp->failover_name) == 0) {
                 sp->failover = pool;
@@ -875,6 +875,57 @@ server_pool_each_set_failover(void *elem, void *data)
         return NC_ERROR;
     }
     
+    return NC_OK;
+}
+
+static rstatus_t
+server_pool_each_set_downstreams(void *elem, void *data)
+{
+    rstatus_t status;
+    struct server_pool *self, *pool, *ds; /* downstream */
+    struct array *pool_array;
+    struct server *server;
+    uint32_t si, pi;            /* server_index and pool_index */
+    
+    self = elem;
+    pool_array = data;
+
+    /* return if this is not a virtual server pool */
+    if (!self->virtual) {
+        return NC_OK;
+    }
+
+    self->downstreams = assoc_create_table(self->key_hash, array_n(&self->server));
+    if (self->downstreams == NULL) {
+        log_error("server: failed to create downstream table");
+        return NC_ENOMEM;
+    }
+
+    for (si = 0; si < array_n(&self->server); si++) {
+        server = array_get(&self->server, si);
+        ds = NULL;
+        
+        /* find the coresponding server pool */
+        for (pi = 0; pi < array_n(pool_array); pi++) {
+            pool = array_get(pool_array, pi);
+            if (string_compare(&pool->name, &server->name) == 0) {
+                ds = pool;
+            }
+        }
+
+        if (ds) {
+            status = assoc_insert(self->downstreams, 
+                                  (const char *)ds->name.data, ds->name.len, ds);
+            if (status != NC_OK) {
+                log_error("server: failed to insert downstream");
+                return status;
+            }
+        } else {
+            log_error("server: failed to find matching downstream");
+            return NC_ERROR;
+        }
+    }
+
     return NC_OK;
 }
 
@@ -949,6 +1000,14 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
     
+    /* set downstream server pools for each server pool */
+    status = array_each(server_pool, server_pool_each_set_downstreams, server_pool);
+    if (status != NC_OK) {
+        log_error("server: failed to set downstreams");
+        server_pool_deinit(server_pool);
+        return status;
+    }
+
     /* update server pool continuum */
     status = array_each(server_pool, server_pool_each_run, NULL);
     if (status != NC_OK) {
@@ -979,6 +1038,10 @@ server_pool_deinit(struct array *server_pool)
             sp->ncontinuum = 0;
             sp->nserver_continuum = 0;
             sp->nlive_server = 0;
+        }
+
+        if (sp->downstreams != NULL) {
+            assoc_destroy_table(sp->downstreams);
         }
 
         server_deinit(&sp->server);

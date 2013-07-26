@@ -110,6 +110,14 @@ static struct command conf_commands[] = {
       conf_set_num,
       offsetof(struct conf_pool, server_probe_timeout) },
 
+    { string("virtual"),
+      conf_set_bool,
+      offsetof(struct conf_pool, virtual) },
+
+    { string("downstreams"),
+      conf_add_downstream,
+      offsetof(struct conf_pool, downstreams) },
+
     null_command
 };
 
@@ -136,6 +144,26 @@ conf_server_deinit(struct conf_server *cs)
     string_deinit(&cs->name);
     cs->valid = 0;
     log_debug(LOG_VVERB, "deinit conf server %p", cs);
+}
+
+static void
+conf_downstream_init(struct conf_downstream *cd)
+{
+    string_init(&cd->name);
+    string_init(&cd->namespace);
+    cd->valid = 0;
+   
+    log_debug(LOG_VVERB, "init conf downstream %p", cd);
+}
+
+static void
+conf_downstream_deinit(struct conf_downstream *cd)
+{
+    string_deinit(&cd->name);
+    string_deinit(&cd->namespace);
+    cd->valid = 0;
+
+    log_debug(LOG_VVERB, "deinit conf downstream %p", cd);
 }
 
 rstatus_t
@@ -209,8 +237,10 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->server_failure_limit = CONF_UNSET_NUM;
     cp->auto_probe_hosts = CONF_UNSET_NUM;
     cp->server_probe_timeout = CONF_UNSET_NUM;
-    
+    cp->virtual = CONF_UNSET_NUM;
+
     array_null(&cp->server);
+    array_null(&cp->downstreams);
 
     cp->valid = 0;
     
@@ -228,6 +258,13 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
         return status;
     }
 
+    status = array_init(&cp->downstreams, CONF_DEFAULT_DOWNSTREAMS,
+                        sizeof(struct conf_downstream));
+    if (status != NC_OK) {
+        string_deinit(&cp->name);
+        return status;
+    }
+    
     log_debug(LOG_VVERB, "init conf pool %p, '%.*s'", cp, name->len, name->data);
 
     return NC_OK;
@@ -248,6 +285,11 @@ conf_pool_deinit(struct conf_pool *cp)
 
     string_deinit(&cp->failover);
     
+    while (array_n(&cp->downstreams) != 0) {
+        conf_downstream_deinit(array_pop(&cp->downstreams));
+    }
+    array_deinit(&cp->downstreams);
+
     log_debug(LOG_VVERB, "deinit conf pool %p", cp);
 }
 
@@ -306,7 +348,9 @@ conf_pool_each_transform(void *elem, void *data)
 
     sp->auto_probe_hosts = cp->auto_probe_hosts ? 1 : 0;
     sp->failover_name = cp->failover;
-    
+    sp->virtual = cp->virtual ? 1 : 0;
+    sp->downstreams = NULL;
+
     status = server_init(&sp->server, &cp->server, sp);
     if (status != NC_OK) {
         log_error("conf: failed to init server");
@@ -322,9 +366,10 @@ conf_pool_each_transform(void *elem, void *data)
 static void
 conf_dump(struct conf *cf)
 {
-    uint32_t i, j, npool, nserver;
+    uint32_t i, j, npool, nserver, ndownstream;
     struct conf_pool *cp;
-    struct string *s;
+    struct conf_server *s;
+    struct conf_downstream *ds;
 
     npool = array_n(&cf->pool);
     if (npool == 0) {
@@ -358,12 +403,23 @@ conf_dump(struct conf *cf)
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
 
-        nserver = array_n(&cp->server);
-        log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
+        if (!cp->virtual) {
+            nserver = array_n(&cp->server);
+            log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
 
-        for (j = 0; j < nserver; j++) {
-            s = array_get(&cp->server, j);
-            log_debug(LOG_VVERB, "    %.*s", s->len, s->data);
+            for (j = 0; j < nserver; j++) {
+                s = array_get(&cp->server, j);
+                log_debug(LOG_VVERB, "    %.*s", s->pname.len, s->pname.data);
+            }
+        } else {
+            ndownstream = array_n(&cp->downstreams);
+            log_debug(LOG_VVERB, "  downstreams: %"PRIu32"", ndownstream);
+        
+            for ( j = 0; j < ndownstream; j++) {
+                ds = array_get(&cp->downstreams, j);
+                log_debug(LOG_VVERB, "    %.*s:%.*s", ds->name.len, ds->name.data,
+                          ds->namespace.len, ds->namespace.data);
+            }
         }
     }
 }
@@ -1168,6 +1224,10 @@ conf_validate_server(struct conf *cf, struct conf_pool *cp)
     uint32_t i, nserver;
     bool valid;
 
+    if (cp->virtual) {
+        return NC_OK;
+    }
+
     nserver = array_n(&cp->server);
     if (nserver == 0) {
         log_error("conf: pool '%.*s' has no servers", cp->name.len,
@@ -1271,6 +1331,10 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
         cp->server_probe_timeout = CONF_DEFAULT_SERVER_PROBE_TIMEOUT;
     }
     
+    if (cp->virtual == CONF_UNSET_NUM) {
+        cp->virtual = CONF_DEFAULT_VIRTUAL;
+    }
+
     status = conf_validate_server(cf, cp);
     if (status != NC_OK) {
         return status;
@@ -1553,27 +1617,27 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         }
 
         switch (k) {
-            case 0:
-                rstart = q + 1;
-                rstartlen = (uint32_t)(p - rstart + 1);
-                break;
-            case 1:
-                name = q + 1;
-                namelen = (uint32_t)(p - name + 1);
-                break;
+        case 0:
+            rstart = q + 1;
+            rstartlen = (uint32_t)(p - rstart + 1);
+            break;
+        case 1:
+            name = q + 1;
+            namelen = (uint32_t)(p - name + 1);
+            break;
 
-            case 2:
-                weight = q + 1;
-                weightlen = (uint32_t)(p - weight + 1);
-                break;
+        case 2:
+            weight = q + 1;
+            weightlen = (uint32_t)(p - weight + 1);
+            break;
 
-            case 3:
-                port = q + 1;
-                portlen = (uint32_t)(p - port + 1);
-                break;
+        case 3:
+            port = q + 1;
+            portlen = (uint32_t)(p - port + 1);
+            break;
 
-            default:
-                NOT_REACHED();
+        default:
+            NOT_REACHED();
         }
 
         p = q - 1;
@@ -1648,6 +1712,81 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     }
 
     string_deinit(&address);
+    field->valid = 1;
+
+    return CONF_OK;
+}
+
+char *
+conf_add_downstream(struct conf *cf, struct command *cmd, void *conf)
+{
+    rstatus_t status;
+    struct array *a;
+    struct string *value;
+    struct conf_downstream *field;
+    uint8_t *p, *q, *start;
+    uint8_t *name, *namespace;
+    uint32_t k, namelen, namespacelen;
+
+    char delim[] = ":";
+    
+    p = conf;
+    a = (struct array *)(p + cmd->offset);
+    
+    field = array_push(a);
+    if (field == NULL) {
+        return CONF_ERROR;
+    }
+
+    conf_downstream_init(field);
+    
+    value = array_top(&cf->arg);
+    
+    /* parse "pool_name namespace" */
+    p = value->data + value->len - 1;
+    start = value->data;
+    name = NULL;
+    namelen = 0;
+    namespace = NULL;
+    namespacelen = 0;
+    
+    for (k = 0; k < sizeof(delim) - 1; k++) {
+        q = nc_strrchr(p, start, delim[k]);
+        if (q == NULL) {
+            break;
+        }
+        
+        switch (k) {
+        case 0:
+            namespace = q + 1;
+            namespacelen = (uint32_t)(p - namespace + 1);
+            break;
+        default:
+            NOT_REACHED();
+        }
+        
+        p = q - 1;
+    }
+
+    if (k != sizeof(delim) - 1) {
+        return "has in invalid \"pool_name namespace\" format string";
+    }
+
+    name = value->data;
+    namelen = value->len - namespacelen - 1;
+    
+    status = string_copy(&field->name, name, namelen);
+    if (status != NC_OK) {
+        array_pop(a);
+        return CONF_ERROR;
+    }
+    
+    status = string_copy(&field->namespace, namespace, namespacelen);
+    if (status != NC_OK) {
+        array_pop(a);
+        return CONF_ERROR;
+    }
+
     field->valid = 1;
 
     return CONF_OK;
@@ -1729,7 +1868,7 @@ conf_set_hash(struct conf *cf, struct command *cmd, void *conf)
             continue;
         }
 
-        *hp = hash - hash_strings;
+        *hp = (hash_type_t)(hash - hash_strings);
 
         return CONF_OK;
     }
@@ -1758,7 +1897,7 @@ conf_set_distribution(struct conf *cf, struct command *cmd, void *conf)
             continue;
         }
 
-        *dp = dist - dist_strings;
+        *dp = (dist_type_t)(dist - dist_strings);
 
         return CONF_OK;
     }

@@ -95,7 +95,7 @@ struct server {
 struct server_pool {
     uint32_t           idx;                  /* pool index */
     struct context     *ctx;                 /* owner context */
-
+    
     struct conn        *p_conn;              /* proxy connection (listener) */
     uint32_t           nc_conn_q;            /* # client connection */
     struct conn_tqh    c_conn_q;             /* client connection q */
@@ -132,7 +132,10 @@ struct server_pool {
 
     unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
     int64_t            server_probe_timeout; /* server probe timeout */
-                                
+
+    unsigned           virtual:1;            /* virtual server */    
+    struct hash_table  *downstreams;         /* downstreams */
+    
 };
 
 void server_ref(struct conn *conn, void *owner);
