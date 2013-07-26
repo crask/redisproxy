@@ -39,6 +39,7 @@ nutcracker_SOURCES =			\
 	nc_array.c nc_array.h		\
 	nc_util.c nc_util.h		\
 	nc_queue.h			\
+	nc_assoc.h nc_assoc.c \
 	nc.c
 
 nutcracker_LDADD = $(top_builddir)/src/hashkit/libhashkit.a

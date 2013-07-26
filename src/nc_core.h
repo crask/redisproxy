@@ -97,6 +97,7 @@ struct instance;
 #include <nc_string.h>
 #include <nc_queue.h>
 #include <nc_rbtree.h>
+#include <nc_assoc.h>
 #include <nc_log.h>
 #include <nc_util.h>
 #include <event/nc_event.h>
