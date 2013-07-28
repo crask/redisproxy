@@ -551,7 +551,8 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
               downstream->namespace.len, downstream->namespace.data,
               downstream->name.len, downstream->name.data);
     /* Transfer this connection to the downstream pool */
-    c_conn->owner = downstream;
+    c_conn->unref(c_conn);
+    c_conn->ref(c_conn, downstream);
     
     req_forward(ctx, c_conn, msg);
 }
