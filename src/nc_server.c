@@ -278,6 +278,7 @@ server_conn(struct server *server)
      * If next_retry <= now, it must have been reset to 0 by server_pool_update
      */
     if (server->next_retry > 0) {
+        errno = ECONNREFUSED;
         return NULL;
     }
     
