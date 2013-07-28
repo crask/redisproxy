@@ -39,6 +39,11 @@ struct string {
     (_str)->data = (uint8_t *)(_raw);           \
 } while (0);
 
+#define string_set(_str, _data, _len) do {      \
+    (_str)->len = (uint32_t)_len;               \
+    (_str)->data = (uint8_t*)_data;             \
+} while (0);
+
 void string_init(struct string *str);
 void string_deinit(struct string *str);
 bool string_empty(const struct string *str);
