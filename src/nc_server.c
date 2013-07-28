@@ -882,44 +882,62 @@ static rstatus_t
 server_pool_each_set_downstreams(void *elem, void *data)
 {
     rstatus_t status;
-    struct server_pool *self, *pool, *ds; /* downstream */
+    struct server_pool *sp, *pool, *ds; /* downstream */
     struct array *pool_array;
-    struct server *server;
-    uint32_t si, pi;            /* server_index and pool_index */
+    struct string *ds_name;
+    uint32_t dsi, pi;            /* server_index and pool_index */
     
-    self = elem;
+    sp = elem;
     pool_array = data;
 
     /* return if this is not a virtual server pool */
-    if (!self->virtual) {
+    if (!sp->virtual) {
         return NC_OK;
     }
+    
 
-    self->downstreams = assoc_create_table(self->key_hash, array_n(&self->server));
-    if (self->downstreams == NULL) {
-        log_error("server: failed to create downstream table");
-        return NC_ENOMEM;
-    }
-
-    for (si = 0; si < array_n(&self->server); si++) {
-        server = array_get(&self->server, si);
+    
+    for (dsi = 0; dsi < array_n(&sp->downstream_names); dsi++) {
+        log_debug(LOG_VERB, "server: set downstream '%.*s'",
+                  ds_name->len, ds_name->data);
+        ds_name = array_get(&sp->downstream_names, dsi);
         ds = NULL;
         
         /* find the coresponding server pool */
         for (pi = 0; pi < array_n(pool_array); pi++) {
             pool = array_get(pool_array, pi);
-            if (string_compare(&pool->name, &server->name) == 0) {
+            if (!pool->virtual && 
+                string_compare(&pool->name, ds_name) == 0) {
                 ds = pool;
             }
         }
 
         if (ds) {
-            status = assoc_insert(self->downstreams, 
-                                  (const char *)ds->name.data, ds->name.len, ds);
+            if (string_empty(&ds->namespace)) {
+                log_error("server: downstream '%.*s' has no namespace",
+                          ds->name.len, ds->name.data);
+                return NC_ERROR;
+            } 
+
+            if (sp->redis != ds->redis) {
+                log_error("server: downstream '%.*s' has difference protocol type",
+                          ds->name.len, ds->name.data);
+                
+                return NC_ERROR;
+            }
+
+            status = assoc_insert(sp->downstreams, 
+                                  (const char *)ds->namespace.data, 
+                                  ds->namespace.len, 
+                                  ds);
             if (status != NC_OK) {
                 log_error("server: failed to insert downstream");
                 return status;
             }
+            
+            log_debug(LOG_VERB, "server: add downstream '%.*s' -> '%.*s'",
+                      ds->namespace.len, ds->namespace.data,
+                      ds->name.len, ds->name.data);
         } else {
             log_error("server: failed to find matching downstream");
             return NC_ERROR;
@@ -1039,6 +1057,8 @@ server_pool_deinit(struct array *server_pool)
             sp->nserver_continuum = 0;
             sp->nlive_server = 0;
         }
+        
+        array_deinit(&sp->downstream_names);
 
         if (sp->downstreams != NULL) {
             assoc_destroy_table(sp->downstreams);

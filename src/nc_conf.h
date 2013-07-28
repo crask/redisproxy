@@ -76,12 +76,6 @@ struct conf_server {
     unsigned        valid:1;            /* valid? */
 };
 
-struct conf_downstream {
-    struct string name;         /* server_pool name */
-    struct string namespace;    /* key namespace */
-    unsigned      valid:1;      /* valid? */
-};
-
 struct conf_pool {
     struct string      name;                  /* pool name (root node) */
     struct conf_listen listen;          /* listen: */
@@ -103,7 +97,8 @@ struct conf_pool {
     int                auto_probe_hosts; /* auto_probe_hosts: */
     int                server_probe_timeout; /* server_probe_timeout: in msec */
     int                virtual;         /* virtual server */
-    struct array       downstreams;     /* downstream server pools */
+    struct array       downstreams;     /* downstreams: string[] */
+    struct string      namespace;       /* namespace */
 };
 
 struct conf {
@@ -140,7 +135,7 @@ char *conf_set_bool(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_hash(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_distribution(struct conf *cf, struct command *cmd, void *conf);
 char *conf_set_hashtag(struct conf *cf, struct command *cmd, void *conf);
-char *conf_add_downstream(struct conf *cf, struct command *cmd, void *conf);
+char *conf_add_string(struct conf *cf, struct command *cmd, void *conf);
 
 rstatus_t conf_server_each_transform(void *elem, void *data);
 rstatus_t conf_pool_each_transform(void *elem, void *data);

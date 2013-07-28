@@ -134,7 +134,10 @@ struct server_pool {
     int64_t            server_probe_timeout; /* server probe timeout */
 
     unsigned           virtual:1;            /* virtual server */    
+    struct array       downstream_names;     /* downstream names */
     struct hash_table  *downstreams;         /* downstreams */
+    
+    struct string      namespace;            /* namespace */
     
 };
 

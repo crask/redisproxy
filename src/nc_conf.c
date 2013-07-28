@@ -115,8 +115,12 @@ static struct command conf_commands[] = {
       offsetof(struct conf_pool, virtual) },
 
     { string("downstreams"),
-      conf_add_downstream,
+      conf_add_string,
       offsetof(struct conf_pool, downstreams) },
+
+    { string("namespace"),
+      conf_set_string,
+      offsetof(struct conf_pool, namespace) },
 
     null_command
 };
@@ -146,25 +150,6 @@ conf_server_deinit(struct conf_server *cs)
     log_debug(LOG_VVERB, "deinit conf server %p", cs);
 }
 
-static void
-conf_downstream_init(struct conf_downstream *cd)
-{
-    string_init(&cd->name);
-    string_init(&cd->namespace);
-    cd->valid = 0;
-   
-    log_debug(LOG_VVERB, "init conf downstream %p", cd);
-}
-
-static void
-conf_downstream_deinit(struct conf_downstream *cd)
-{
-    string_deinit(&cd->name);
-    string_deinit(&cd->namespace);
-    cd->valid = 0;
-
-    log_debug(LOG_VVERB, "deinit conf downstream %p", cd);
-}
 
 rstatus_t
 conf_server_each_transform(void *elem, void *data)
@@ -245,6 +230,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->valid = 0;
     
     string_init(&cp->failover);
+    string_init(&cp->namespace);
     
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
@@ -259,8 +245,9 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     }
 
     status = array_init(&cp->downstreams, CONF_DEFAULT_DOWNSTREAMS,
-                        sizeof(struct conf_downstream));
+                        sizeof(struct string));
     if (status != NC_OK) {
+        array_deinit(&cp->server);
         string_deinit(&cp->name);
         return status;
     }
@@ -284,9 +271,10 @@ conf_pool_deinit(struct conf_pool *cp)
     array_deinit(&cp->server);
 
     string_deinit(&cp->failover);
-    
+    string_deinit(&cp->namespace);
+
     while (array_n(&cp->downstreams) != 0) {
-        conf_downstream_deinit(array_pop(&cp->downstreams));
+        string_deinit(array_pop(&cp->downstreams));
     }
     array_deinit(&cp->downstreams);
 
@@ -300,6 +288,8 @@ conf_pool_each_transform(void *elem, void *data)
     struct conf_pool *cp = elem;
     struct array *server_pool = data;
     struct server_pool *sp;
+    struct string *name;
+    uint32_t i;
 
     ASSERT(cp->valid);
 
@@ -349,8 +339,32 @@ conf_pool_each_transform(void *elem, void *data)
     sp->auto_probe_hosts = cp->auto_probe_hosts ? 1 : 0;
     sp->failover_name = cp->failover;
     sp->virtual = cp->virtual ? 1 : 0;
+    sp->namespace = cp->namespace;
+
+    array_null(&sp->downstream_names);
     sp->downstreams = NULL;
 
+    if (sp->virtual) {
+        status = array_init(&sp->downstream_names, 
+                            array_n(&cp->downstreams), sizeof(struct string));
+        if (status != NC_OK) {
+            log_error("conf: failed to init downsteams");
+            return status;
+        }
+
+        for (i = 0; i < array_n(&cp->downstreams); i++) {
+            name = array_push(&sp->downstream_names);
+            *name = *(struct string *)array_get(&cp->downstreams, i);
+        }
+
+        sp->downstreams = assoc_create_table(sp->key_hash, 
+                                             array_n(&sp->downstream_names));
+        if (sp->downstreams == NULL) {
+            log_error("conf: failed to init downstream table");
+            return NC_ENOMEM;
+        }
+    } 
+      
     status = server_init(&sp->server, &cp->server, sp);
     if (status != NC_OK) {
         log_error("conf: failed to init server");
@@ -369,7 +383,7 @@ conf_dump(struct conf *cf)
     uint32_t i, j, npool, nserver, ndownstream;
     struct conf_pool *cp;
     struct conf_server *s;
-    struct conf_downstream *ds;
+    struct string *ds;
 
     npool = array_n(&cf->pool);
     if (npool == 0) {
@@ -404,6 +418,8 @@ conf_dump(struct conf *cf)
                   cp->server_failure_limit);
 
         if (!cp->virtual) {
+            log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace);
+
             nserver = array_n(&cp->server);
             log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
 
@@ -417,8 +433,8 @@ conf_dump(struct conf *cf)
         
             for ( j = 0; j < ndownstream; j++) {
                 ds = array_get(&cp->downstreams, j);
-                log_debug(LOG_VVERB, "    %.*s:%.*s", ds->name.len, ds->name.data,
-                          ds->namespace.len, ds->namespace.data);
+                log_debug(LOG_VVERB, "    %.*s", ds->len, ds->data);
+
             }
         }
     }
@@ -1225,42 +1241,48 @@ conf_validate_server(struct conf *cf, struct conf_pool *cp)
     bool valid;
 
     if (cp->virtual) {
+        if (array_n(&cp->downstreams) == 0) {
+            log_error("conf: virtual pool '%.*s' has no downstreams",
+                      cp->name.len, cp->name.data);
+            return NC_ERROR;
+        }
+
+        return NC_OK;
+    } else {
+        nserver = array_n(&cp->server);
+        if (nserver == 0) {
+            log_error("conf: pool '%.*s' has no servers", cp->name.len,
+                      cp->name.data);
+            return NC_ERROR;
+        }
+
+        /*
+         * Disallow duplicate servers - servers with identical "host:port:weight"
+         * or "name" combination are considered as duplicates. When server name
+         * is configured, we only check for duplicate "name" and not for duplicate
+         * "host:port:weight"
+         */
+        array_sort(&cp->server, conf_server_name_cmp);
+        for (valid = true, i = 0; i < nserver - 1; i++) {
+            struct conf_server *cs1, *cs2;
+
+            cs1 = array_get(&cp->server, i);
+            cs2 = array_get(&cp->server, i + 1);
+
+            if (string_compare(&cs1->name, &cs2->name) == 0) {
+                log_error("conf: pool '%.*s' has servers with same name '%.*s'",
+                          cp->name.len, cp->name.data, cs1->name.len, 
+                          cs1->name.data);
+                valid = false;
+                break;
+            }
+        }
+        if (!valid) {
+            return NC_ERROR;
+        }
+
         return NC_OK;
     }
-
-    nserver = array_n(&cp->server);
-    if (nserver == 0) {
-        log_error("conf: pool '%.*s' has no servers", cp->name.len,
-                  cp->name.data);
-        return NC_ERROR;
-    }
-
-    /*
-     * Disallow duplicate servers - servers with identical "host:port:weight"
-     * or "name" combination are considered as duplicates. When server name
-     * is configured, we only check for duplicate "name" and not for duplicate
-     * "host:port:weight"
-     */
-    array_sort(&cp->server, conf_server_name_cmp);
-    for (valid = true, i = 0; i < nserver - 1; i++) {
-        struct conf_server *cs1, *cs2;
-
-        cs1 = array_get(&cp->server, i);
-        cs2 = array_get(&cp->server, i + 1);
-
-        if (string_compare(&cs1->name, &cs2->name) == 0) {
-            log_error("conf: pool '%.*s' has servers with same name '%.*s'",
-                      cp->name.len, cp->name.data, cs1->name.len, 
-                      cs1->name.data);
-            valid = false;
-            break;
-        }
-    }
-    if (!valid) {
-        return NC_ERROR;
-    }
-
-    return NC_OK;
 }
 
 static rstatus_t
@@ -1718,18 +1740,13 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 }
 
 char *
-conf_add_downstream(struct conf *cf, struct command *cmd, void *conf)
+conf_add_string(struct conf *cf, struct command *cmd, void *conf)
 {
     rstatus_t status;
     struct array *a;
-    struct string *value;
-    struct conf_downstream *field;
-    uint8_t *p, *q, *start;
-    uint8_t *name, *namespace;
-    uint32_t k, namelen, namespacelen;
+    uint8_t *p;
+    struct string *field, *value;
 
-    char delim[] = ":";
-    
     p = conf;
     a = (struct array *)(p + cmd->offset);
     
@@ -1737,57 +1754,14 @@ conf_add_downstream(struct conf *cf, struct command *cmd, void *conf)
     if (field == NULL) {
         return CONF_ERROR;
     }
-
-    conf_downstream_init(field);
     
     value = array_top(&cf->arg);
-    
-    /* parse "pool_name namespace" */
-    p = value->data + value->len - 1;
-    start = value->data;
-    name = NULL;
-    namelen = 0;
-    namespace = NULL;
-    namespacelen = 0;
-    
-    for (k = 0; k < sizeof(delim) - 1; k++) {
-        q = nc_strrchr(p, start, delim[k]);
-        if (q == NULL) {
-            break;
-        }
-        
-        switch (k) {
-        case 0:
-            namespace = q + 1;
-            namespacelen = (uint32_t)(p - namespace + 1);
-            break;
-        default:
-            NOT_REACHED();
-        }
-        
-        p = q - 1;
-    }
 
-    if (k != sizeof(delim) - 1) {
-        return "has in invalid \"pool_name namespace\" format string";
-    }
-
-    name = value->data;
-    namelen = value->len - namespacelen - 1;
-    
-    status = string_copy(&field->name, name, namelen);
+    status = string_duplicate(field, value);
     if (status != NC_OK) {
         array_pop(a);
         return CONF_ERROR;
     }
-    
-    status = string_copy(&field->namespace, namespace, namespacelen);
-    if (status != NC_OK) {
-        array_pop(a);
-        return CONF_ERROR;
-    }
-
-    field->valid = 1;
 
     return CONF_OK;
 }
