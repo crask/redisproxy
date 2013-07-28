@@ -430,14 +430,32 @@ req_forward_stats(struct context *ctx, struct server *server, struct msg *msg)
     stats_server_incr_by(ctx, server, request_bytes, msg->mlen);
 }
 
+
+static void
+req_hash_key(const uint8_t *start, const uint8_t *end, const struct string *tag, struct string *key)
+{
+    uint8_t *tag_start, *tag_end;
+
+    ASSERT(start != NULL && end > start && tag != NULL && key != NULL);
+    
+    tag_start = nc_strchr(start, end, tag->data[0]);
+    if (tag_start != NULL) {
+        tag_end = nc_strchr(tag_start + 1, end, tag->data[1]);
+        if (tag_end != NULL) {
+            key->data = tag_start + 1;
+            key->len = (uint32_t)(tag_end - key->data);
+        }
+    }
+}
+
+
 static void
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
-    struct conn *s_conn, *failover_conn;
+    struct conn *s_conn, *f_conn;
     struct server_pool *pool, *failover_pool;
-    uint8_t *key;
-    uint32_t keylen;
+    struct string key = null_string;
 
     ASSERT(c_conn->client && !c_conn->proxy);
 
@@ -447,44 +465,33 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     }
 
     pool = c_conn->owner;
-    key = NULL;
-    keylen = 0;
-
+    
     /*
      * If hash_tag: is configured for this server pool, we use the part of
      * the key within the hash tag as an input to the distributor. Otherwise
      * we use the full key
      */
     if (!string_empty(&pool->hash_tag)) {
-        struct string *tag = &pool->hash_tag;
-        uint8_t *tag_start, *tag_end;
+        req_hash_key(msg->key_start, msg->key_end, &pool->hash_tag, &key);
+    } 
 
-        tag_start = nc_strchr(msg->key_start, msg->key_end, tag->data[0]);
-        if (tag_start != NULL) {
-            tag_end = nc_strchr(tag_start + 1, msg->key_end, tag->data[1]);
-            if (tag_end != NULL) {
-                key = tag_start + 1;
-                keylen = (uint32_t)(tag_end - key);
-            }
-        }
+    /* Fallback to the whole string as hash_key */
+    if (string_empty(&key)) {
+        string_set(&key, msg->key_start, (msg->key_end - msg->key_start));
     }
 
-    if (keylen == 0) {
-        key = msg->key_start;
-        keylen = (uint32_t)(msg->key_end - msg->key_start);
-    }
-
-    s_conn = server_pool_conn(ctx, pool, key, keylen);
+    s_conn = server_pool_conn(ctx, pool, key.data, key.len);
     if (s_conn == NULL) {
         failover_pool = pool->failover;
+        /* Fallback to the failover pool */
         if (failover_pool != NULL) {
-            failover_conn = server_pool_conn(ctx, failover_pool, key, keylen);
-            if (failover_conn == NULL) {
+            f_conn = server_pool_conn(ctx, failover_pool, key.data, key.len);
+            if (f_conn == NULL) {
                 req_forward_error(ctx, c_conn, msg);
                 return;
             }
             log_debug(LOG_VERB, "use failover conn");
-            s_conn = failover_conn;
+            s_conn = f_conn;
         } else {
             req_forward_error(ctx, c_conn, msg);
             return;
@@ -507,18 +514,62 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     log_debug(LOG_VERB, "forward from c %d to s %d req %"PRIu64" len %"PRIu32
               " type %d with key '%.*s'", c_conn->sd, s_conn->sd, msg->id,
-              msg->mlen, msg->type, keylen, key);
+              msg->mlen, msg->type, key.len, key.data);
 }
+
+static void
+req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
+{
+    struct server_pool *pool, *downstream;
+    struct string namespace = null_string;
+
+    ASSERT(pool->virtual && !string_empty(&pool->hash_tag));
+
+    pool = c_conn->owner;
+
+    req_hash_key(msg->key_start, msg->key_end, &pool->hash_tag, &namespace);
+    if (string_empty(&namespace)) {
+        log_debug(LOG_VERB, "no downstream namespace");
+
+        if (!msg->noreply) {
+            c_conn->enqueue_outq(ctx, c_conn, msg);
+        }
+
+        errno = EINVAL;
+        req_forward_error(ctx, c_conn, msg);
+        return;
+    }
+
+    downstream = assoc_find(pool->downstreams, 
+                            (const char *)namespace.data, namespace.len);
+    if (downstream == NULL) {
+        log_warn("no downstream for namespace \"%.*s\"", namespace.len, namespace.data);
+        req_forward_error(ctx, c_conn, msg);
+        return;
+    }
+    log_debug(LOG_VERB, "forward to downstream: '%.*s' -> '%.*s'", 
+              downstream->namespace.len, downstream->namespace.data,
+              downstream->name.len, downstream->name.data);
+    /* Transfer this connection to the downstream pool */
+    c_conn->owner = downstream;
+    
+    req_forward(ctx, c_conn, msg);
+}
+
 
 void
 req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
               struct msg *nmsg)
 {
+    struct server_pool *pool;
+
     ASSERT(conn->client && !conn->proxy);
     ASSERT(msg->request);
     ASSERT(msg->owner == conn);
     ASSERT(conn->rmsg == msg);
     ASSERT(nmsg == NULL || nmsg->request);
+
+    pool = conn->owner;
 
     /* enqueue next message (request), if any */
     conn->rmsg = nmsg;
@@ -526,8 +577,12 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     if (req_filter(ctx, conn, msg)) {
         return;
     }
-
-    req_forward(ctx, conn, msg);
+    
+    if (pool->virtual) {
+        req_virtual_forward(ctx, conn, msg);
+    } else {
+        req_forward(ctx, conn, msg);
+    }
 }
 
 struct msg *
