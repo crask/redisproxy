@@ -106,6 +106,8 @@ struct instance;
 #include <nc_message.h>
 #include <nc_connection.h>
 
+#define NC_TICK_INTERVAL (1 * 1000) /* in msecs */
+
 struct context {
     uint32_t           id;          /* unique context id */
     struct conf        *cf;         /* configuration */
@@ -115,6 +117,7 @@ struct context {
     struct evbase      *evb;
     int                max_timeout; /* epoll wait max timeout in msec */
     int                timeout;
+    int64_t            next_tick;   /* next tick */
 };
 
 

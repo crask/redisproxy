@@ -2,10 +2,9 @@ beta:
   listen: 127.0.0.1:22122
   hash: murmur
   distribution: range
-  timeout: 10000
-  redis: true
   auto_eject_hosts: true
   preconnect: true
+  namespace: ns2
   servers:
    - 127.0.0.1:6380:1 server1^0
 
@@ -13,11 +12,19 @@ alpha:
   listen: 127.0.0.1:22123
   hash: murmur
   distribution: range
-  timeout: 10000
   server_retry_timeout: 10000
   auto_eject_hosts: true
   preconnect: true
-  auto_probe_hosts: true
+  namespace: ns1
   servers:
    - 127.0.0.1:6381:1 server1^0
 
+gamma:
+  listen: 127.0.0.1:22124
+  virtual: true
+  hash_tag: "{}"
+  client_connections: 100
+  downstreams:
+    - alpha
+    - beta
+  

@@ -33,11 +33,19 @@ core_ctx_create(struct instance *nci)
 {
     rstatus_t status;
     struct context *ctx;
+    int64_t now;
 
     ctx = nc_alloc(sizeof(*ctx));
     if (ctx == NULL) {
         return NULL;
     }
+
+    now = nc_msec_now();
+    if (now < 0) {
+        nc_free(ctx);
+        return NULL;
+    }
+
     ctx->id = ++ctx_id;
     ctx->cf = NULL;
     ctx->stats = NULL;
@@ -45,6 +53,7 @@ core_ctx_create(struct instance *nci)
     array_null(&ctx->pool);
     ctx->max_timeout = nci->stats_interval;
     ctx->timeout = ctx->max_timeout;
+    ctx->next_tick = now + NC_TICK_INTERVAL;
 
     /* parse and create configuration */
     ctx->cf = conf_create(nci->conf_filename);
@@ -233,7 +242,6 @@ static void
 core_timeout(struct context *ctx)
 {
     rstatus_t status;
-    log_debug(LOG_VERB, "probe timeout");
 
     status = server_pool_probe(ctx);
     if (status != NC_OK) {
@@ -324,10 +332,29 @@ core_core(void *arg, uint32_t events)
     }
 }
 
+static void
+core_tick(struct context *ctx)
+{
+
+}
+
 rstatus_t
 core_loop(struct context *ctx)
 {
     int nsd;
+    int64_t now, delta;
+
+    now = nc_msec_now();
+    while (now >= ctx->next_tick) {
+        core_tick(ctx);
+        ctx->next_tick += NC_TICK_INTERVAL;
+    }
+
+    delta = ctx->next_tick - now;
+
+    ASSERT(delta > 0);
+    
+    ctx->timeout = MIN(delta, ctx->timeout);
 
     nsd = event_wait(ctx->evb, ctx->timeout);
     if (nsd < 0) {

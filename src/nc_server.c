@@ -899,8 +899,6 @@ server_pool_each_set_downstreams(void *elem, void *data)
 
     
     for (dsi = 0; dsi < array_n(&sp->downstream_names); dsi++) {
-        log_debug(LOG_VERB, "server: set downstream '%.*s'",
-                  ds_name->len, ds_name->data);
         ds_name = array_get(&sp->downstream_names, dsi);
         ds = NULL;
         
