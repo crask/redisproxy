@@ -335,7 +335,7 @@ core_core(void *arg, uint32_t events)
 static void
 core_tick(struct context *ctx)
 {
-
+    server_pool_update_ratelimit(ctx);
 }
 
 rstatus_t

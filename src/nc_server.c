@@ -1174,3 +1174,52 @@ server_pool_probe(struct context *ctx)
     /* always returns NC_OK */
     return NC_OK;
 }
+
+static rstatus_t
+server_pool_each_update_ratelimit(void *elem, void *data)
+{
+    struct server_pool *pool = elem;
+    float delta;
+    
+    if (pool->rate != CONF_DEFAULT_RATE &&
+        pool->burst != CONF_DEFAULT_BURST) {
+        delta = pool->rate * NC_TICK_INTERVAL / 1000;
+        if (pool->count >= delta) {
+            pool->count -= delta;
+        } else {
+            pool->count = 0;
+        }
+    }
+
+    log_debug(LOG_VERB, "ratelimit: %.*s rate: %.2f burst: %.2f count: %.2f",
+              pool->name.len, pool->name.data,
+              pool->rate, pool->burst, pool->count);
+
+    return NC_OK;
+}
+
+void
+server_pool_update_ratelimit(struct context *ctx)
+{
+    struct array *pools;
+
+    pools = &ctx->pool;
+
+    array_each(pools, server_pool_each_update_ratelimit, NULL);
+}
+
+bool
+server_pool_ratelimit(struct server_pool *pool)
+{
+    if (pool->rate != CONF_DEFAULT_RATE && pool->burst != CONF_DEFAULT_BURST) {
+        /* ratelimit enabled */
+        if (pool->count < pool->burst) {
+            pool->count += 1;
+            return false;
+        } else {
+            return true;
+        }
+    } else {
+        return false;
+    }                
+}

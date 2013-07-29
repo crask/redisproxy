@@ -57,6 +57,9 @@
 #define CONF_DEFAULT_AUTO_PROBE_HOSTS     false
 #define CONF_DEFAULT_SERVER_PROBE_TIMEOUT 10 * 1000 /* in msec */
 #define CONF_DEFAULT_VIRTUAL              false
+#define CONF_DEFAULT_RATE                 0
+#define CONF_DEFAULT_BURST                0
+
 
 struct conf_listen {
     struct string   pname;   /* listen: as "name:port" */
@@ -99,6 +102,9 @@ struct conf_pool {
     int                virtual;         /* virtual server */
     struct array       downstreams;     /* downstreams: string[] */
     struct string      namespace;       /* namespace */
+    
+    int                rate;            /* # of requests per second */
+    int                burst;           /* max bursts of requests */
 };
 
 struct conf {

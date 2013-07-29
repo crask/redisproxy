@@ -138,7 +138,11 @@ struct server_pool {
     struct hash_table  *downstreams;         /* downstreams */
     
     struct string      namespace;            /* namespace */
-    
+
+    float              rate;                 /* # of request per second*/
+    float              burst;                /* max bursts of requests */
+    float              count;                /* # of request in the bucket */
+
 };
 
 void server_ref(struct conn *conn, void *owner);
@@ -162,5 +166,7 @@ rstatus_t server_pool_init(struct array *server_pool, struct array *conf_pool, s
 void server_pool_deinit(struct array *server_pool);
 
 rstatus_t server_pool_probe(struct context *ctx);
+void server_pool_update_ratelimit(struct context *ctx);
+bool server_pool_ratelimit(struct server_pool *pool);
 
 #endif

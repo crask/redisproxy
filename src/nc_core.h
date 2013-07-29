@@ -106,7 +106,7 @@ struct instance;
 #include <nc_message.h>
 #include <nc_connection.h>
 
-#define NC_TICK_INTERVAL (1 * 1000) /* in msecs */
+#define NC_TICK_INTERVAL (1 * 100) /* in msecs */
 
 struct context {
     uint32_t           id;          /* unique context id */

@@ -122,6 +122,14 @@ static struct command conf_commands[] = {
       conf_set_string,
       offsetof(struct conf_pool, namespace) },
 
+    { string("rate"),
+      conf_set_num,
+      offsetof(struct conf_pool, rate) },
+    
+    { string("burst"),
+      conf_set_num,
+      offsetof(struct conf_pool, burst) },
+
     null_command
 };
 
@@ -232,6 +240,9 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     string_init(&cp->failover);
     string_init(&cp->namespace);
     
+    cp->rate = CONF_UNSET_NUM;
+    cp->burst = CONF_UNSET_NUM;
+
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -344,6 +355,10 @@ conf_pool_each_transform(void *elem, void *data)
     array_null(&sp->downstream_names);
     sp->downstreams = NULL;
 
+    sp->rate = cp->rate;
+    sp->burst = cp->burst;
+    sp->count = 0;
+
     if (sp->virtual) {
         status = array_init(&sp->downstream_names, 
                             array_n(&cp->downstreams), sizeof(struct string));
@@ -416,6 +431,8 @@ conf_dump(struct conf *cf)
                   cp->server_retry_timeout);
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
+        log_debug(LOG_VVERB, "  rate: %d", cp->rate);
+        log_debug(LOG_VVERB, "  burst: %d", cp->burst);
 
         if (!cp->virtual) {
             log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace);
@@ -1355,6 +1372,14 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
     
     if (cp->virtual == CONF_UNSET_NUM) {
         cp->virtual = CONF_DEFAULT_VIRTUAL;
+    }
+
+    if (cp->rate == CONF_UNSET_NUM) {
+        cp->rate = CONF_DEFAULT_RATE;
+    }
+
+    if (cp->burst == CONF_UNSET_NUM) {
+        cp->burst = CONF_DEFAULT_BURST;
     }
 
     status = conf_validate_server(cf, cp);

@@ -361,37 +361,6 @@ req_recv_next(struct context *ctx, struct conn *conn, bool alloc)
 
     return msg;
 }
-
-static bool
-req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
-{
-    ASSERT(conn->client && !conn->proxy);
-
-    if (msg_empty(msg)) {
-        ASSERT(conn->rmsg == NULL);
-        log_debug(LOG_VERB, "filter empty req %"PRIu64" from c %d", msg->id,
-                  conn->sd);
-        req_put(msg);
-        return true;
-    }
-
-    /*
-     * Handle "quit\r\n", which is the protocol way of doing a
-     * passive close
-     */
-    if (msg->quit) {
-        ASSERT(conn->rmsg == NULL);
-        log_debug(LOG_INFO, "filter quit req %"PRIu64" from c %d", msg->id,
-                  conn->sd);
-        conn->eof = 1;
-        conn->recv_ready = 0;
-        req_put(msg);
-        return true;
-    }
-
-    return false;
-}
-
 static void
 req_forward_error(struct context *ctx, struct conn *conn, struct msg *msg)
 {
@@ -420,6 +389,51 @@ req_forward_error(struct context *ctx, struct conn *conn, struct msg *msg)
         }
     }
 }
+
+static bool
+req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
+{
+    struct server_pool *pool;
+    
+    pool = conn->owner;
+
+    ASSERT(conn->client && !conn->proxy);
+
+    if (msg_empty(msg)) {
+        ASSERT(conn->rmsg == NULL);
+        log_debug(LOG_VERB, "filter empty req %"PRIu64" from c %d", msg->id,
+                  conn->sd);
+        req_put(msg);
+        return true;
+    }
+
+    /*
+     * Handle "quit\r\n", which is the protocol way of doing a
+     * passive close
+     */
+    if (msg->quit) {
+        ASSERT(conn->rmsg == NULL);
+        log_debug(LOG_INFO, "filter quit req %"PRIu64" from c %d", msg->id,
+                  conn->sd);
+        conn->eof = 1;
+        conn->recv_ready = 0;
+        req_put(msg);
+        return true;
+    }
+
+    if (server_pool_ratelimit(pool)) {
+        if (!msg->noreply) {
+            conn->enqueue_outq(ctx, conn, msg);
+        }
+        
+        errno = EBUSY;
+        req_forward_error(ctx, conn, msg);
+        return true;
+    }
+    
+    return false;
+}
+
 
 static void
 req_forward_stats(struct context *ctx, struct server *server, struct msg *msg)

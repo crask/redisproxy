@@ -16,6 +16,8 @@ alpha:
   auto_eject_hosts: true
   preconnect: true
   namespace: ns1
+  rate: 100
+  burst: 1000
   servers:
    - 127.0.0.1:6381:1 server1^0
 
