@@ -127,8 +127,8 @@ struct server_pool {
     unsigned           preconnect:1;         /* preconnect? */
     unsigned           redis:1;              /* redis? */
 
-    struct string      failover_name;        /* failover pool name */
-    struct server_pool *failover;            /* failover pool */
+    struct string      gutter_name;          /* gutter pool name */
+    struct server_pool *gutter;              /* gutter pool */
 
     unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
     int64_t            server_probe_timeout; /* server probe timeout */

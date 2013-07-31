@@ -858,18 +858,18 @@ server_pool_each_set_owner(void *elem, void *data)
 }
 
 static rstatus_t
-server_pool_each_set_failover(void *elem, void *data)
+server_pool_each_set_gutter(void *elem, void *data)
 {
     struct server_pool *sp = elem, *pool;
     struct array *pool_array = data;
     uint32_t pool_index;
     
-    if (!string_empty(&sp->failover_name)) {
+    if (!string_empty(&sp->gutter_name)) {
         for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
             pool = array_get(pool_array, pool_index);
 
-            if (string_compare(&pool->name, &sp->failover_name) == 0) {
-                sp->failover = pool;
+            if (string_compare(&pool->name, &sp->gutter_name) == 0) {
+                sp->gutter = pool;
                 return NC_OK;
             }
         }
@@ -1009,10 +1009,10 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
-    /* set failover pool for each server pool */
-    status = array_each(server_pool, server_pool_each_set_failover, server_pool);
+    /* set gutter pool for each server pool */
+    status = array_each(server_pool, server_pool_each_set_gutter, server_pool);
     if (status != NC_OK) {
-        log_error("server: failed to set failover pool");
+        log_error("server: failed to set gutter pool");
         server_pool_deinit(server_pool);
         return status;
     }

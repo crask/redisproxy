@@ -341,8 +341,8 @@ core_tick(struct context *ctx)
 rstatus_t
 core_loop(struct context *ctx)
 {
-    int nsd;
-    int64_t now, delta;
+    int nsd, delta;
+    int64_t now;
 
     now = nc_msec_now();
     while (now >= ctx->next_tick) {
@@ -350,7 +350,7 @@ core_loop(struct context *ctx)
         ctx->next_tick += NC_TICK_INTERVAL;
     }
 
-    delta = ctx->next_tick - now;
+    delta = (int)(ctx->next_tick - now);
 
     ASSERT(delta > 0);
     

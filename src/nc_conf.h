@@ -80,31 +80,31 @@ struct conf_server {
 };
 
 struct conf_pool {
-    struct string      name;                  /* pool name (root node) */
-    struct conf_listen listen;          /* listen: */
-    hash_type_t        hash;            /* hash: */
-    struct string      hash_tag;        /* hash_tag: */
-    dist_type_t        distribution;    /* distribution: */
-    int                timeout;         /* timeout: */
-    int                backlog;         /* backlog: */
-    int                client_connections; /* client_connections: */
-    int                redis;           /* redis: */
-    int                preconnect;      /* preconnect: */
-    int                auto_eject_hosts; /* auto_eject_hosts: */
-    int                server_connections; /* server_connections: */
+    struct string      name;                 /* pool name (root node) */
+    struct conf_listen listen;               /* listen: */
+    hash_type_t        hash;                 /* hash: */
+    struct string      hash_tag;             /* hash_tag: */
+    dist_type_t        distribution;         /* distribution: */
+    int                timeout;              /* timeout: */
+    int                backlog;              /* backlog: */
+    int                client_connections;   /* client_connections: */
+    int                redis;                /* redis: */
+    int                preconnect;           /* preconnect: */
+    int                auto_eject_hosts;     /* auto_eject_hosts: */
+    int                server_connections;   /* server_connections: */
     int                server_retry_timeout; /* server_retry_timeout: in msec */
     int                server_failure_limit; /* server_failure_limit: */
-    struct array       server;          /* servers: conf_server[] */
-    unsigned           valid:1;         /* valid? */
-    struct string      failover;        /* failover pool name*/
-    int                auto_probe_hosts; /* auto_probe_hosts: */
+    struct array       server;               /* servers: conf_server[] */
+    unsigned           valid:1;              /* valid? */
+    struct string      gutter;               /* gutter pool name*/
+    int                auto_probe_hosts;     /* auto_probe_hosts: */
     int                server_probe_timeout; /* server_probe_timeout: in msec */
-    int                virtual;         /* virtual server */
-    struct array       downstreams;     /* downstreams: string[] */
-    struct string      namespace;       /* namespace */
+    int                virtual;              /* virtual server */
+    struct array       downstreams;          /* downstreams: string[] */
+    struct string      namespace;            /* namespace */
     
-    int                rate;            /* # of requests per second */
-    int                burst;           /* max bursts of requests */
+    int                rate;                 /* # of requests per second */
+    int                burst;                /* max bursts of requests */
 };
 
 struct conf {

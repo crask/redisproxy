@@ -467,8 +467,8 @@ static void
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
-    struct conn *s_conn, *f_conn;
-    struct server_pool *pool, *failover_pool;
+    struct conn *s_conn, *f_conn; /* fallback connection */
+    struct server_pool *pool, *gutter;
     struct string key = null_string;
 
     ASSERT(c_conn->client && !c_conn->proxy);
@@ -496,15 +496,15 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     s_conn = server_pool_conn(ctx, pool, key.data, key.len);
     if (s_conn == NULL) {
-        failover_pool = pool->failover;
-        /* Fallback to the failover pool */
-        if (failover_pool != NULL) {
-            f_conn = server_pool_conn(ctx, failover_pool, key.data, key.len);
+        gutter = pool->gutter;
+        /* Fallback to the gutter pool */
+        if (gutter != NULL) {
+            f_conn = server_pool_conn(ctx, gutter, key.data, key.len);
             if (f_conn == NULL) {
                 req_forward_error(ctx, c_conn, msg);
                 return;
             }
-            log_debug(LOG_VERB, "use failover conn");
+            log_debug(LOG_VERB, "use gutter conn");
             s_conn = f_conn;
         } else {
             req_forward_error(ctx, c_conn, msg);
