@@ -96,7 +96,8 @@ struct conf_pool {
     int                server_failure_limit; /* server_failure_limit: */
     struct array       server;               /* servers: conf_server[] */
     unsigned           valid:1;              /* valid? */
-    struct string      gutter;               /* gutter pool name*/
+    struct string      gutter;               /* gutter pool name */
+    struct string      peer;                 /* peer pool name */
     int                auto_probe_hosts;     /* auto_probe_hosts: */
     int                server_probe_timeout; /* server_probe_timeout: in msec */
     int                virtual;              /* virtual server */

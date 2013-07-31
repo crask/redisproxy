@@ -102,6 +102,10 @@ static struct command conf_commands[] = {
       conf_set_string,
       offsetof(struct conf_pool, gutter) },
 
+    { string("peer"),
+      conf_set_string,
+      offsetof(struct conf_pool, peer) },
+
     { string("auto_probe_hosts"),
       conf_set_bool,
       offsetof(struct conf_pool, auto_probe_hosts) },
@@ -238,6 +242,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->valid = 0;
     
     string_init(&cp->gutter);
+    string_init(&cp->peer);
     string_init(&cp->namespace);
     
     cp->rate = CONF_UNSET_NUM;
@@ -282,6 +287,7 @@ conf_pool_deinit(struct conf_pool *cp)
     array_deinit(&cp->server);
 
     string_deinit(&cp->gutter);
+    string_deinit(&cp->peer);
     string_deinit(&cp->namespace);
 
     while (array_n(&cp->downstreams) != 0) {
@@ -349,6 +355,7 @@ conf_pool_each_transform(void *elem, void *data)
 
     sp->auto_probe_hosts = cp->auto_probe_hosts ? 1 : 0;
     sp->gutter_name = cp->gutter;
+    sp->peer_name = cp->peer;
     sp->virtual = cp->virtual ? 1 : 0;
     sp->namespace = cp->namespace;
 

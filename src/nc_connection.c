@@ -104,6 +104,7 @@ _conn_get(void)
     }
 
     conn->owner = NULL;
+    conn->peer = NULL;
 
     conn->sd = -1;
     /* {family, addrlen, addr} are initialized in enqueue handler */

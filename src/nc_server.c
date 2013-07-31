@@ -880,6 +880,29 @@ server_pool_each_set_gutter(void *elem, void *data)
 }
 
 static rstatus_t
+server_pool_each_set_peer(void *elem, void *data)
+{
+    struct server_pool *sp = elem, *pool;
+    struct array *pool_array = data;
+    uint32_t pool_index;
+    
+    if (!string_empty(&sp->peer_name)) {
+        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+            pool = array_get(pool_array, pool_index);
+
+            if (string_compare(&pool->name, &sp->peer_name) == 0) {
+                sp->peer = pool;
+                return NC_OK;
+            }
+        }
+        return NC_ERROR;
+    }
+    
+    return NC_OK;
+}
+
+
+static rstatus_t
 server_pool_each_set_downstreams(void *elem, void *data)
 {
     rstatus_t status;

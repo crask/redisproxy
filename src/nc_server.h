@@ -128,7 +128,9 @@ struct server_pool {
     unsigned           redis:1;              /* redis? */
 
     struct string      gutter_name;          /* gutter pool name */
+    struct string      peer_name;            /* peer pool name */
     struct server_pool *gutter;              /* gutter pool */
+    struct server_pool *peer;                /* peer pool */
 
     unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
     int64_t            server_probe_timeout; /* server probe timeout */

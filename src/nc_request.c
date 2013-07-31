@@ -468,7 +468,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
     struct conn *s_conn, *f_conn; /* fallback connection */
-    struct server_pool *pool, *gutter;
+    struct server_pool *pool, *gutter, *peer;
     struct string key = null_string;
 
     ASSERT(c_conn->client && !c_conn->proxy);
