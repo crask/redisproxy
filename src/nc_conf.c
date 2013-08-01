@@ -109,6 +109,10 @@ static struct command conf_commands[] = {
     { string("auto_probe_hosts"),
       conf_set_bool,
       offsetof(struct conf_pool, auto_probe_hosts) },
+
+    { string("auto_warmup"),
+      conf_set_bool,
+      offsetof(struct conf_pool, auto_warmup) },
         
     { string("server_probe_timeout"),
       conf_set_num,
@@ -235,6 +239,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->auto_probe_hosts = CONF_UNSET_NUM;
     cp->server_probe_timeout = CONF_UNSET_NUM;
     cp->virtual = CONF_UNSET_NUM;
+    cp->auto_warmup = CONF_UNSET_NUM;
 
     array_null(&cp->server);
     array_null(&cp->downstreams);
@@ -358,6 +363,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->peer_name = cp->peer;
     sp->virtual = cp->virtual ? 1 : 0;
     sp->namespace = cp->namespace;
+    sp->auto_warmup = cp->auto_warmup ? 1 : 0;
 
     array_null(&sp->downstream_names);
     sp->downstreams = NULL;
@@ -1372,7 +1378,11 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
     if (cp->auto_probe_hosts == CONF_UNSET_NUM) {
         cp->auto_probe_hosts = CONF_DEFAULT_AUTO_PROBE_HOSTS;
     }
-
+    
+    if (cp->auto_warmup == CONF_UNSET_NUM) {
+        cp->auto_warmup = CONF_DEFAULT_AUTO_WARMUP;
+    }
+    
     if (cp->server_probe_timeout == CONF_UNSET_NUM) {
         cp->server_probe_timeout = CONF_DEFAULT_SERVER_PROBE_TIMEOUT;
     }

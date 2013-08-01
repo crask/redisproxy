@@ -59,7 +59,7 @@
 #define CONF_DEFAULT_VIRTUAL              false
 #define CONF_DEFAULT_RATE                 0
 #define CONF_DEFAULT_BURST                0
-
+#define CONF_DEFAULT_AUTO_WARMUP          0
 
 struct conf_listen {
     struct string   pname;   /* listen: as "name:port" */
@@ -106,6 +106,8 @@ struct conf_pool {
     
     int                rate;                 /* # of requests per second */
     int                burst;                /* max bursts of requests */
+    
+    int                auto_warmup;          /* auto warmup */
 };
 
 struct conf {

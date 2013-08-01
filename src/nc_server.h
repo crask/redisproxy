@@ -67,29 +67,29 @@ struct continuum {
 };
 
 struct server {
-    uint32_t            idx;            /* server index */
-    struct server_pool *owner;          /* owner pool */
+    uint32_t            idx;   /* server index */
+    struct server_pool *owner; /* owner pool */
 
-    struct string    pname;             /* name:port:weight (ref in conf_server) */
-    struct string    name;              /* name (ref in conf_server) */
-    uint16_t         port;              /* port */
-    uint32_t         weight;            /* weight */
-    int              family;            /* socket family */
-    socklen_t        addrlen;           /* socket length */
-    struct sockaddr *addr;              /* socket address (ref in conf_server) */
+    struct string    pname;    /* name:port:weight (ref in conf_server) */
+    struct string    name;     /* name (ref in conf_server) */
+    uint16_t         port;     /* port */
+    uint32_t         weight;   /* weight */
+    int              family;   /* socket family */
+    socklen_t        addrlen;  /* socket length */
+    struct sockaddr *addr;     /* socket address (ref in conf_server) */
 
-    uint32_t        ns_conn_q;          /* # server connection */
-    struct conn_tqh s_conn_q;           /* server connection q */
+    uint32_t        ns_conn_q; /* # server connection */
+    struct conn_tqh s_conn_q;  /* server connection q */
 
-    int64_t  next_retry;                /* next retry time in usec */
-    uint32_t failure_count;             /* # consecutive failures */
+    int64_t  next_retry;       /* next retry time in usec */
+    uint32_t failure_count;    /* # consecutive failures */
 
-    int range_start;               /* range start */
-    int range_end;                 /* range end */
+    int range_start;           /* range start */
+    int range_end;             /* range end */
 
-    int64_t next_probe;                 /* next probe time in usec */
+    int64_t next_probe;        /* next probe time in usec */
     
-    void *stats;                         /* stats data */
+    void *stats;               /* stats data */
 };
 
 struct server_pool {
@@ -145,6 +145,7 @@ struct server_pool {
     float              burst;                /* max bursts of requests */
     float              count;                /* # of request in the bucket */
 
+    unsigned           auto_warmup:1;        /* auto_warmup? */
 };
 
 void server_ref(struct conn *conn, void *owner);
