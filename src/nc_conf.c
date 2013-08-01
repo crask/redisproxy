@@ -385,14 +385,14 @@ conf_pool_each_transform(void *elem, void *data)
             log_error("conf: failed to init downstream table");
             return NC_ENOMEM;
         }
-    } 
-      
-    status = server_init(&sp->server, &cp->server, sp);
-    if (status != NC_OK) {
-        log_error("conf: failed to init server");
-        return status;
+    } else {
+        status = server_init(&sp->server, &cp->server, sp);
+        if (status != NC_OK) {
+            log_error("conf: failed to init server");
+            return status;
+        }
     }
-
+      
     log_debug(LOG_VERB, "transform to pool %"PRIu32" '%.*s'", sp->idx,
               sp->name.len, sp->name.data);
 
@@ -1786,6 +1786,7 @@ conf_add_string(struct conf *cf, struct command *cmd, void *conf)
     if (field == NULL) {
         return CONF_ERROR;
     }
+    string_init(field);
     
     value = array_top(&cf->arg);
 

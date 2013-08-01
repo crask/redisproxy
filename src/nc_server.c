@@ -972,7 +972,11 @@ server_pool_each_set_downstreams(void *elem, void *data)
 rstatus_t
 server_pool_run(struct server_pool *pool)
 {
-    ASSERT(array_n(&pool->server) != 0);
+    ASSERT(pool->virtual || array_n(&pool->server) != 0);
+
+    if (pool->virtual) {
+        return NC_OK;
+    }
 
     switch (pool->dist_type) {
         case DIST_KETAMA:

@@ -139,7 +139,7 @@ assoc_insert(struct hash_table *table, const char *key, size_t nkey, void *data)
     struct item_slh *bucket;
     struct item *it;
 
-    ASSERT(assoc_find(key, nkey) == NULL);
+    ASSERT(assoc_find(table, key, nkey) == NULL);
     
     bucket = assoc_find_bucket(table, key, nkey);
     

@@ -194,7 +194,9 @@ stats_server_map(struct array *stats_server, struct array *server)
     uint32_t i, nserver;
 
     nserver = array_n(server);
-    ASSERT(nserver != 0);
+    if (nserver == 0) {
+        return NC_OK;
+    }
 
     status = array_init(stats_server, nserver, sizeof(struct stats_server));
     if (status != NC_OK) {

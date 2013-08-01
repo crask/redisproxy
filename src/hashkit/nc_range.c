@@ -103,8 +103,10 @@ range_dispatch(struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
             right = middle;
             /* hash in [left, right) */
         }
-    }
+    }    
     /* hash in [left, right) and right - left = 1 */
+    ASSERT(right->index < ncontinuum);
+    
     log_debug(LOG_VVERB, "dispatch hash %"PRIu32" to index %"PRIu32,
               hash, right->index);
     return right->index;
