@@ -5,6 +5,9 @@ beta:
   auto_eject_hosts: true
   preconnect: true
   namespace: ns2
+  auto_probe_hosts: true
+  auto_warmup: true
+  peer: alpha
   servers:
    - 127.0.0.1:6380:1 server1^0
 
@@ -12,12 +15,10 @@ alpha:
   listen: 127.0.0.1:22123
   hash: murmur
   distribution: range
-  server_retry_timeout: 10000
   auto_eject_hosts: true
   preconnect: true
   namespace: ns1
-  rate: 100
-  burst: 1000
+  auto_probe_hosts: true
   servers:
    - 127.0.0.1:6381:1 server1^0
 

@@ -233,6 +233,14 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
         }
     }
 
+    /* If the request and response belong to different pools, either
+     * we have a connection to be warmup up, or the response came from a
+     * gutter
+     */
+    if (c_conn->owner != s_conn->owner && pmsg->target != NULL) {
+        server_warmup(pmsg, msg);
+    }
+
     rsp_forward_stats(ctx, s_conn->owner, msg);
 }
 

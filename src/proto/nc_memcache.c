@@ -196,6 +196,41 @@ memcache_retrieval(struct msg *r)
     return false;
 }
 
+/* 
+ * Return true, if the memcache command is a get command, otherwise 
+ * return false
+ */
+static bool
+memcache_get(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_REQ_MC_GET:
+        return true;
+    default:
+        break;
+    }
+    
+    return false;
+}
+
+/* 
+ * Return true, if the memcache response is a value, otherwise
+ * return false
+ */
+
+static bool
+memcache_value(struct msg *r)
+{
+    switch (r->type) {
+    case MSG_RSP_MC_VALUE:
+        return true;
+    default:
+        break;
+    }
+    
+    return false;
+}
+
 /*
  * Return true, if the memcache command is a arithmetic command, otherwise
  * return false
@@ -1112,6 +1147,7 @@ memcache_parse_rsp(struct msg *r)
             if (r->token == NULL) {
                 /* flags_start <- p */
                 r->token = p;
+                r->flags_start = p;
             }
 
             if (isdigit(ch)) {
@@ -1119,6 +1155,7 @@ memcache_parse_rsp(struct msg *r)
                 ;
             } else if (ch == ' ') {
                 /* flags_end <- p - 1 */
+                r->flags_end = p;
                 r->token = NULL;
                 state = SW_SPACES_BEFORE_VLEN;
             } else {
@@ -1170,6 +1207,10 @@ memcache_parse_rsp(struct msg *r)
             break;
 
         case SW_VAL:
+            /* FIXME: maybe we can unify the INLINE_VAL and VAL? */
+            if (r->val_start == NULL) {
+                r->val_start = p;
+            }
             m = p + r->vlen;
             if (m >= b->last) {
                 ASSERT(r->vlen >= (uint32_t)(b->last - p));
@@ -1181,6 +1222,7 @@ memcache_parse_rsp(struct msg *r)
             switch (*m) {
             case CR:
                 /* val_end <- p - 1 */
+                r->val_end = p - 1;
                 p = m; /* move forward by vlen bytes */
                 state = SW_VAL_LF;
                 break;
@@ -1551,4 +1593,89 @@ memcache_cold(struct memcache_stats *stats)
     ASSERT(stats != NULL);
 
     return stats->cold == 1;
+}
+
+
+bool
+memcache_need_warmup(struct msg *req, struct msg *rsp)
+{
+    /* Only handle get */
+    if (memcache_get(req) && memcache_value(rsp)) {
+        return true;
+    }
+
+    return false;
+}
+
+/* 
+   Request:
+   get <key>\r\n
+
+   Response:
+   VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+   <data block>\r\n
+   END\r\n
+
+   Warmup request:
+   set <key> <flags> <exptime> <bytes> noreply\r\n
+   <data block>\r\n
+ */
+rstatus_t
+memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
+{
+    struct mbuf *src, *dst;
+    int n;
+    uint32_t remain, length;
+    uint8_t *pos;
+    
+    ASSERT(rsp->key_start && rsp->key_end);
+    ASSERT(rsp->flags_start && rsp->flags_end);
+    ASSERT(rsp->vlen > 0);
+    
+    dst = mbuf_get();
+    if (dst == NULL) {
+        return NC_ENOMEM;
+    }
+    mbuf_insert(&msg->mhdr, dst);
+    /* Write command line */
+    n = nc_snprintf(dst->last, mbuf_size(dst), "set %.*s %.*s %d %d noreply\r\n",
+                    (int)(rsp->key_end - rsp->key_start), rsp->key_start,
+                    (int)(rsp->flags_end - rsp->flags_start), rsp->flags_start,
+                    0,
+                    rsp->vlen);
+    if (n < 0 || n > (int)mbuf_size(dst)) {
+        return NC_ERROR;
+    }
+    
+    dst->last += n;
+    
+    remain = rsp->vlen + 2;     /* <data block>\r\n */
+    STAILQ_FOREACH(src, &rsp->mhdr, next) {
+        /* Copy value from each source mbuf */
+        if (rsp->val_start >= src->pos && rsp->val_start < src->last) {
+            pos = rsp->val_start;
+        } else {
+            pos = src->pos;
+        }
+        length = (uint32_t)(src->last - pos);
+        while (length > 0 && remain > 0) {
+            if (mbuf_full(dst)) {
+                dst = mbuf_get();
+                if (dst == NULL) {
+                    return NC_ENOMEM;
+                }
+                mbuf_insert(&msg->mhdr, dst);
+            }
+
+            n = MIN(MIN(length, mbuf_size(dst)), remain);
+            mbuf_copy(dst, pos, n);
+            pos += n;
+            length -= n;
+            remain -= n;
+        }
+    }
+    
+    msg->noreply = 1;
+
+    return NC_OK;
 }

@@ -129,7 +129,7 @@ server_cold(struct conn *conn)
     server = conn->owner;
     pool = server->owner;
 
-    if (!pool->redis) {
+    if (!pool->redis && pool->auto_warmup) {
         return memcache_cold(server->stats);
     } else {
         return false;
@@ -1043,6 +1043,14 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         server_pool_deinit(server_pool);
         return status;
     }
+
+    /* set peer pool for each server pool */
+    status = array_each(server_pool, server_pool_each_set_peer, server_pool);
+    if (status != NC_OK) {
+        log_error("server: failed to set peer pool");
+        server_pool_deinit(server_pool);
+        return status;
+    }
     
     /* set downstream server pools for each server pool */
     status = array_each(server_pool, server_pool_each_set_downstreams, server_pool);
@@ -1249,4 +1257,40 @@ server_pool_ratelimit(struct server_pool *pool)
     } else {
         return false;
     }                
+}
+
+
+void 
+server_warmup(struct msg *req, struct msg *rsp)
+{
+    rstatus_t status;
+    struct conn *conn;
+    struct server *server;
+    struct server_pool *pool;
+    struct msg *msg;
+
+    conn = req->target;
+    server = conn->owner;
+    pool = server->owner;
+
+    msg = msg_build_warmup(req, rsp);
+    if (msg == NULL) {
+        return;
+    }
+
+    ASSERT(msg->noreply);
+
+    if (TAILQ_EMPTY(&conn->imsg_q)) {
+        status = event_add_out(pool->ctx->evb, conn);
+        if (status != NC_OK) {
+            req_put(msg);
+            conn->err = errno;
+            log_warn("server: failed to add out event for warmup request");
+            return;
+        }
+    }
+    conn->enqueue_inq(pool->ctx, conn, msg);
+    
+    log_debug(LOG_VERB, "warmup sent to %.*s",
+              server->pname.len, server->pname.data);
 }

@@ -19,6 +19,7 @@
 #define _NC_STRING_H_
 
 #include <string.h>
+#include <stdio.h>
 #include <nc_core.h>
 
 struct string {

@@ -39,7 +39,6 @@ typedef void (*conn_msgq_t)(struct context *, struct conn *, struct msg *);
 struct conn {
     TAILQ_ENTRY(conn)  conn_tqe;      /* link in server_pool / server / free q */
     void               *owner;        /* connection owner - server_pool / server */
-    void               *peer;         /* peer connection (for warmup) */
 
     int                sd;            /* socket descriptor */
     int                family;        /* socket address family */

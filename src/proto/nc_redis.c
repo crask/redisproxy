@@ -2185,3 +2185,10 @@ redis_destroy_stats(struct redis_stats *stats)
 {
     nc_free(stats);
 }
+
+
+bool
+redis_need_warmup(struct msg *req, struct msg *rsp)
+{
+    return false;
+}

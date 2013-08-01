@@ -24,6 +24,8 @@ typedef void (*msg_parse_t)(struct msg *);
 typedef rstatus_t (*msg_post_splitcopy_t)(struct msg *);
 typedef void (*msg_coalesce_t)(struct msg *r);
 typedef rstatus_t (*msg_build_probe_t)(struct msg *);
+typedef bool (*msg_need_warmup_t)(struct msg *, struct msg *);
+typedef rstatus_t (*msg_build_warmup_t)(struct msg *, struct msg *, struct msg *);
 typedef void (*msg_handle_probe_t)(struct msg *, struct msg *);
 
 typedef enum msg_parse_result {
@@ -169,7 +171,8 @@ struct msg {
     uint64_t             id;              /* message id */
     struct msg           *peer;           /* message peer */
     struct conn          *owner;          /* message owner - client | server */
-
+    struct conn          *target;         /* message target connection */
+    
     struct rbnode        tmo_rbe;         /* entry in rbtree */
 
     struct mhdr          mhdr;            /* message mbuf header */
@@ -188,15 +191,23 @@ struct msg {
     msg_coalesce_t       post_coalesce;   /* message post-coalesce */
     msg_build_probe_t    build_probe;     /* message build probe */
     msg_handle_probe_t   handle_probe;    /* message handle probe */
+    msg_need_warmup_t    need_warmup;     /* message need warmup */
+    msg_build_warmup_t   build_warmup;    /* message build warmup */
     
     msg_type_t           type;            /* message type */
 
     uint8_t              *key_start;      /* key start */
     uint8_t              *key_end;        /* key end */
 
-    uint8_t              *val_start;      /* inline value start */
-    uint8_t              *val_end;        /* inline value end */
+    uint8_t              *val_start;      /* value start */
+    uint8_t              *val_end;        /* value end */
     
+    uint8_t              *flags_start;    /* flags start (memcache) */
+    uint8_t              *flags_end;      /* flags end (memcache) */
+
+    uint8_t              *expire_start;   /* expire start */
+    uint8_t              *expire_end;     /* expire end */
+
     uint32_t             vlen;            /* value length (memcache) */
     uint8_t              *end;            /* end marker (memcache) */
 
@@ -244,6 +255,7 @@ bool msg_empty(struct msg *msg);
 rstatus_t msg_recv(struct context *ctx, struct conn *conn);
 rstatus_t msg_send(struct context *ctx, struct conn *conn);
 struct msg *msg_build_probe(bool redis);
+struct msg *msg_build_warmup(struct msg *req, struct msg *rsp);
 
 struct msg *req_get(struct conn *conn);
 void req_put(struct msg *msg);

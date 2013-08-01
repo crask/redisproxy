@@ -495,7 +495,7 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     }
 
     s_conn = server_pool_conn(ctx, pool, key.data, key.len);
-    if (s_conn == NULL) {
+    if (s_conn == NULL) {       /* Automatic failover logic */
         gutter = pool->gutter;
         /* Fallback to the gutter pool */
         if (gutter != NULL) {
@@ -504,11 +504,22 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
                 req_forward_error(ctx, c_conn, msg);
                 return;
             }
-            log_debug(LOG_VERB, "use gutter conn");
             s_conn = f_conn;
+            log_debug(LOG_VERB, "fallback to gutter connection");
         } else {
             req_forward_error(ctx, c_conn, msg);
             return;
+        }
+    } else if (server_cold(s_conn)) { /* Automatic warmup logic */
+        peer = pool->peer;
+        /* Fallback to the peer pool if possible */
+        if (peer != NULL) {
+            f_conn = server_pool_conn(ctx, peer, key.data, key.len);
+            if (f_conn != NULL && !server_cold(f_conn)) {
+                msg->target = s_conn;
+                s_conn = f_conn;                
+                log_debug(LOG_VERB, "fallback to peer connection");
+            }
         }
     }
     ASSERT(!s_conn->client && !s_conn->proxy);

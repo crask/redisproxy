@@ -154,7 +154,8 @@ void memcache_handle_probe(struct msg *req, struct msg *rsp);
 struct memcache_stats *memcache_create_stats();
 void memcache_destroy_stats(struct memcache_stats *stats);
 bool memcache_cold(struct memcache_stats *stats);
-
+bool memcache_need_warmup(struct msg *req, struct msg *rsp);
+rstatus_t memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg);
 
 void redis_parse_req(struct msg *r);
 void redis_parse_rsp(struct msg *r);
@@ -166,5 +167,6 @@ rstatus_t redis_build_probe(struct msg *r);
 void redis_handle_probe(struct msg *req, struct msg *rsp);
 struct redis_stats *redis_create_stats();
 void redis_destroy_stats(struct redis_stats *stats);
+bool redis_need_warmup(struct msg *req, struct msg *rsp);
 
 #endif
