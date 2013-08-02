@@ -74,6 +74,7 @@ struct server {
     struct string    name;     /* name (ref in conf_server) */
     uint16_t         port;     /* port */
     uint32_t         weight;   /* weight */
+
     int              family;   /* socket family */
     socklen_t        addrlen;  /* socket length */
     struct sockaddr *addr;     /* socket address (ref in conf_server) */
@@ -127,25 +128,25 @@ struct server_pool {
     unsigned           preconnect:1;         /* preconnect? */
     unsigned           redis:1;              /* redis? */
 
-    struct string      gutter_name;          /* gutter pool name */
-    struct string      peer_name;            /* peer pool name */
-    struct server_pool *gutter;              /* gutter pool */
-    struct server_pool *peer;                /* peer pool */
-
     unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
     int64_t            server_probe_timeout; /* server probe timeout */
+    unsigned           auto_warmup:1;        /* auto_warmup? */
 
-    unsigned           virtual:1;            /* virtual server */    
+    struct string      gutter_name;          /* gutter pool name */
+    struct server_pool *gutter;              /* gutter pool */
+
+    struct string      peer_name;            /* peer pool name */
+    struct server_pool *peer;                /* peer pool */
+
     struct array       downstream_names;     /* downstream names */
     struct hash_table  *downstreams;         /* downstreams */
-    
+
+    unsigned           virtual:1;            /* virtual server */        
     struct string      namespace;            /* namespace */
 
     float              rate;                 /* # of request per second*/
     float              burst;                /* max bursts of requests */
     float              count;                /* # of request in the bucket */
-
-    unsigned           auto_warmup:1;        /* auto_warmup? */
 };
 
 void server_ref(struct conn *conn, void *owner);

@@ -202,6 +202,8 @@ conf_server_each_transform(void *elem, void *data)
 
     s->next_probe = 0LL;
     
+    s->stats = NULL;
+    
     log_debug(LOG_VERB, "transform to server %"PRIu32" '%.*s'",
               s->idx, s->pname.len, s->pname.data);
 
@@ -354,19 +356,25 @@ conf_pool_each_transform(void *elem, void *data)
     sp->server_connections = (uint32_t)cp->server_connections;
     sp->server_retry_timeout = (int64_t)cp->server_retry_timeout * 1000LL;
     sp->server_failure_limit = (uint32_t)cp->server_failure_limit;
-    sp->server_probe_timeout = (uint32_t)cp->server_probe_timeout * 1000LL;
+
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
 
     sp->auto_probe_hosts = cp->auto_probe_hosts ? 1 : 0;
-    sp->gutter_name = cp->gutter;
-    sp->peer_name = cp->peer;
-    sp->virtual = cp->virtual ? 1 : 0;
-    sp->namespace = cp->namespace;
+    sp->server_probe_timeout = (uint32_t)cp->server_probe_timeout * 1000LL;
     sp->auto_warmup = cp->auto_warmup ? 1 : 0;
+
+    sp->gutter_name = cp->gutter;
+    sp->gutter = NULL;
+
+    sp->peer_name = cp->peer;
+    sp->peer = NULL;
 
     array_null(&sp->downstream_names);
     sp->downstreams = NULL;
+
+    sp->virtual = cp->virtual ? 1 : 0;
+    sp->namespace = cp->namespace;
 
     sp->rate = cp->rate;
     sp->burst = cp->burst;
