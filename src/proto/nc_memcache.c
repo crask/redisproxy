@@ -1637,12 +1637,15 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
         return NC_ENOMEM;
     }
     mbuf_insert(&msg->mhdr, dst);
+
+    ASSERT(mbuf_empty(dst));
+
     /* Write command line */
-    n = nc_snprintf(dst->last, mbuf_size(dst), "set %.*s %.*s %d %d noreply\r\n",
-                    (int)(rsp->key_end - rsp->key_start), rsp->key_start,
-                    (int)(rsp->flags_end - rsp->flags_start), rsp->flags_start,
-                    0,
-                    rsp->vlen);
+    n = nc_scnprintf(dst->last, mbuf_size(dst), "set %.*s %.*s %d %d noreply\r\n",
+                     (int)(rsp->key_end - rsp->key_start), rsp->key_start,
+                     (int)(rsp->flags_end - rsp->flags_start), rsp->flags_start,
+                     0,
+                     rsp->vlen);
     if (n < 0 || n > (int)mbuf_size(dst)) {
         return NC_ERROR;
     }

@@ -426,7 +426,7 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
             conn->enqueue_outq(ctx, conn, msg);
         }
         
-        errno = EBUSY;
+        errno = NC_ETOOMANYREQUESTS;
         req_forward_error(ctx, conn, msg);
         return true;
     }
@@ -548,9 +548,9 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     struct server_pool *pool, *downstream;
     struct string namespace = null_string;
 
-    ASSERT(pool->virtual && !string_empty(&pool->hash_tag));
-
     pool = c_conn->owner;
+
+    ASSERT(pool->virtual && !string_empty(&pool->hash_tag));
 
     req_hash_key(msg->key_start, msg->key_end, &pool->hash_tag, &namespace);
     if (string_empty(&namespace)) {

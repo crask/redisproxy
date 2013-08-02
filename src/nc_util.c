@@ -633,3 +633,22 @@ nc_millisec_to_timespec (int n_millisec)
 
     return ts;
 }
+
+static char *
+_nc_strerror(err_t err)
+{
+    switch (err) {
+    case NC_OK:
+        return "Ok";
+    case NC_ETOOMANYREQUESTS:
+        return "Too many requests";
+    default:
+        return "Unkown";
+    }
+}
+
+char *
+nc_strerror(err_t err)
+{
+    return err >= 0 ? strerror(err) : _nc_strerror(err);
+}
