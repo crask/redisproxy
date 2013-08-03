@@ -1,33 +1,78 @@
-beta:
-  listen: 127.0.0.1:22122
-  hash: murmur
+alpha:
+  listen: 127.0.0.1:22121
+  hash: fnv1a_64
   distribution: range
-  auto_eject_hosts: true
   preconnect: true
-  namespace: ns2
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
   auto_probe_hosts: true
+  gutter: alpha_gutter
+  namespace: alpha
+  auto_warmup: true
+  peer: beta
+  rate: 100000
+  burst: 200000
+  servers:
+   - 127.0.0.1:11211:1 server1^0
+   - 127.0.0.1:11212:1 server2^16384
+   - 127.0.0.1:11213:1 server3^32768
+   - 127.0.0.1:11214:1 server4^49152
+  
+
+alpha_gutter:
+  listen: 127.0.0.1:22122
+  hash: fnv1a_64
+  distribution: ketama
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:11215:1 server1
+
+beta:
+  listen: 127.0.0.1:22123
+  hash: fnv1a_64
+  distribution: range
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  auto_probe_hosts: true
+  gutter: beta_gutter
+  namespace: beta
   auto_warmup: true
   peer: alpha
+  rate: 100000
+  burst: 200000
   servers:
-   - 127.0.0.1:6380:1 server1^0
+   - 127.0.0.1:11216:1 server1^0
+   - 127.0.0.1:11217:1 server2^19384
+   - 127.0.0.1:11218:1 server3^32768
+   - 127.0.0.1:11219:1 server4^49152
 
-alpha:
-  listen: 127.0.0.1:22123
-  hash: murmur
-  distribution: range
-  auto_eject_hosts: true
-  preconnect: true
-  namespace: ns1
-  auto_probe_hosts: true
-  servers:
-   - 127.0.0.1:6381:1 server1^0
 
-gamma:
+beta_gutter:
   listen: 127.0.0.1:22124
+  hash: fnv1a_64
+  distribution: ketama
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:11220:1 server1
+  
+  
+virtual_pool:
+  listen: 127.0.0.1:22125
   virtual: true
   hash_tag: "{}"
-  client_connections: 100
   downstreams:
     - alpha
     - beta
-  
