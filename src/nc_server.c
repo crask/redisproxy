@@ -1131,7 +1131,7 @@ server_each_probe(void *elem, void *data)
         return NC_OK;
     }
     
-    server->next_probe = now + pool->server_probe_timeout;
+    server->next_probe = now + pool->server_retry_timeout;
 
     status = server_pool_update(pool);
     if (status != NC_OK) {

@@ -99,7 +99,6 @@ struct conf_pool {
     struct string      gutter;               /* gutter pool name */
     struct string      peer;                 /* peer pool name */
     int                auto_probe_hosts;     /* auto_probe_hosts: */
-    int                server_probe_timeout; /* server_probe_timeout: in msec */
     int                virtual;              /* virtual server */
     struct array       downstreams;          /* downstreams: string[] */
     struct string      namespace;            /* namespace */

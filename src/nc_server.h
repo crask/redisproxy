@@ -129,7 +129,7 @@ struct server_pool {
     unsigned           redis:1;              /* redis? */
 
     unsigned           auto_probe_hosts:1;   /* auto_probe_hosts? */
-    int64_t            server_probe_timeout; /* server probe timeout */
+
     unsigned           auto_warmup:1;        /* auto_warmup? */
 
     struct string      gutter_name;          /* gutter pool name */

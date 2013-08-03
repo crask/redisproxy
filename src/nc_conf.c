@@ -113,10 +113,6 @@ static struct command conf_commands[] = {
     { string("auto_warmup"),
       conf_set_bool,
       offsetof(struct conf_pool, auto_warmup) },
-        
-    { string("server_probe_timeout"),
-      conf_set_num,
-      offsetof(struct conf_pool, server_probe_timeout) },
 
     { string("virtual"),
       conf_set_bool,
@@ -239,7 +235,6 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->server_retry_timeout = CONF_UNSET_NUM;
     cp->server_failure_limit = CONF_UNSET_NUM;
     cp->auto_probe_hosts = CONF_UNSET_NUM;
-    cp->server_probe_timeout = CONF_UNSET_NUM;
     cp->virtual = CONF_UNSET_NUM;
     cp->auto_warmup = CONF_UNSET_NUM;
 
@@ -361,7 +356,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->preconnect = cp->preconnect ? 1 : 0;
 
     sp->auto_probe_hosts = cp->auto_probe_hosts ? 1 : 0;
-    sp->server_probe_timeout = (uint32_t)cp->server_probe_timeout * 1000LL;
+
     sp->auto_warmup = cp->auto_warmup ? 1 : 0;
 
     sp->gutter_name = cp->gutter;
@@ -1389,10 +1384,6 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
     
     if (cp->auto_warmup == CONF_UNSET_NUM) {
         cp->auto_warmup = CONF_DEFAULT_AUTO_WARMUP;
-    }
-    
-    if (cp->server_probe_timeout == CONF_UNSET_NUM) {
-        cp->server_probe_timeout = CONF_DEFAULT_SERVER_PROBE_TIMEOUT;
     }
     
     if (cp->virtual == CONF_UNSET_NUM) {
