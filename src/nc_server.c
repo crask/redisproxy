@@ -211,6 +211,8 @@ server_init(struct array *server, struct array *conf_server,
             next = array_get(server, i + 1);            
             if (cur->range_start >= next->range_start
                 || cur->range_start >= DIST_RANGE_MAX) {
+                log_error("invalid range start: %.*s^%"PRIu32, 
+                          sp->name.len, sp->name.data, cur->range_start);
                 return NC_ERROR;
             }
             /* range is [start, end) */
@@ -256,7 +258,7 @@ server_deinit(struct array *server)
         s = array_pop(server);
         pool = s->owner;
         
-        ASSERT(s->stats != NULL);
+        ASSERT(pool->virtual || s->stats != NULL);
         ASSERT(TAILQ_EMPTY(&s->s_conn_q) && s->ns_conn_q == 0);
 
         if (pool->redis) {
