@@ -218,7 +218,7 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     if (pmsg->owner == NULL) {
         log_debug(LOG_VERB, "handle probe");
         pmsg->handle_probe(pmsg, msg);
-        
+        stats_server_set(ctx, s_conn->owner, cold, server_cold(s_conn) ? 1 : 0);
         req_put(pmsg);
         return;
     }

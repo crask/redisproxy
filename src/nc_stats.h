@@ -46,7 +46,10 @@
     ACTION( in_queue_bytes,         STATS_GAUGE,        "current request bytes in incoming queue")          \
     ACTION( out_queue,              STATS_GAUGE,        "# requests in outgoing queue")                     \
     ACTION( out_queue_bytes,        STATS_GAUGE,        "current request bytes in outgoing queue")          \
-
+    /* backend status */                                                                                    \
+    ACTION( cold,                   STATS_NUMERIC,      "current cold status of backend server")            \
+            
+    
 #define STATS_ADDR      "0.0.0.0"
 #define STATS_PORT      22222
 #define STATS_INTERVAL  (30 * 1000) /* in msec */
@@ -55,6 +58,7 @@ typedef enum stats_type {
     STATS_INVALID,
     STATS_COUNTER,    /* monotonic accumulator */
     STATS_GAUGE,      /* non-monotonic accumulator */
+    STATS_NUMERIC,    /* non-negtive numeric value */
     STATS_TIMESTAMP,  /* monotonic timestamp (in nsec) */
     STATS_SENTINEL
 } stats_type_t;
@@ -65,6 +69,7 @@ struct stats_metric {
     union {
         int64_t   counter;      /* accumulating counter */
         int64_t   timestamp;    /* monotonic timestamp */
+        int64_t   numeric;      /* numeric value */
     } value;
 };
 
@@ -147,6 +152,10 @@ typedef enum stats_server_field {
     _stats_pool_decr_by(_ctx, _pool, STATS_POOL_##_name, _val);         \
 } while (0)
 
+#define stats_pool_set(_ctx, _pool, _name, _val) do {                   \
+   _stats_pool_set(_ctx, _pool, STATS_POOL_##_name, _val);              \
+} while (0)
+
 #define stats_server_incr(_ctx, _server, _name) do {                    \
     _stats_server_incr(_ctx, _server, STATS_SERVER_##_name);            \
 } while (0)
@@ -163,6 +172,11 @@ typedef enum stats_server_field {
     _stats_server_decr_by(_ctx, _server, STATS_SERVER_##_name, _val);   \
 } while (0)
 
+#define stats_server_set(_ctx, _server, _name, _val) do {               \
+    _stats_server_set(_ctx, _server, STATS_SERVER_##_name, _val);       \
+} while (0)
+
+
 #else
 
 #define stats_pool_incr(_ctx, _pool, _name)
@@ -173,6 +187,8 @@ typedef enum stats_server_field {
 
 #define stats_pool_decr_by(_ctx, _pool, _name, _val)
 
+#define stats_pool_set(_ctx, _pool, _name, _val)
+
 #define stats_server_incr(_ctx, _server, _name)
 
 #define stats_server_decr(_ctx, _server, _name)
@@ -180,6 +196,8 @@ typedef enum stats_server_field {
 #define stats_server_incr_by(_ctx, _server, _name, _val)
 
 #define stats_server_decr_by(_ctx, _server, _name, _val)
+
+#define stats_server_set(_ctx, _server, _name, _val)
 
 #endif
 
@@ -191,11 +209,13 @@ void _stats_pool_incr(struct context *ctx, struct server_pool *pool, stats_pool_
 void _stats_pool_decr(struct context *ctx, struct server_pool *pool, stats_pool_field_t fidx);
 void _stats_pool_incr_by(struct context *ctx, struct server_pool *pool, stats_pool_field_t fidx, int64_t val);
 void _stats_pool_decr_by(struct context *ctx, struct server_pool *pool, stats_pool_field_t fidx, int64_t val);
+void _stats_pool_set(struct context *ctx, struct server_pool *pool, stats_pool_field_t fidx, int64_t val);
 
 void _stats_server_incr(struct context *ctx, struct server *server, stats_server_field_t fidx);
 void _stats_server_decr(struct context *ctx, struct server *server, stats_server_field_t fidx);
 void _stats_server_incr_by(struct context *ctx, struct server *server, stats_server_field_t fidx, int64_t val);
 void _stats_server_decr_by(struct context *ctx, struct server *server, stats_server_field_t fidx, int64_t val);
+void _stats_server_set(struct context *ctx, struct server *server, stats_server_field_t fidx, int64_t val);
 
 struct stats *stats_create(uint16_t stats_port, char *stats_ip, int stats_interval, char *source, struct array *server_pool);
 void stats_destroy(struct stats *stats);
