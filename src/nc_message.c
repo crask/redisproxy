@@ -273,6 +273,7 @@ done:
     return msg;
 }
 
+/* conn will be NULL when it's specical purpose message sent from us */
 struct msg *
 msg_get(struct conn *conn, bool request, bool redis)
 {
@@ -321,6 +322,39 @@ msg_get(struct conn *conn, bool request, bool redis)
               msg, msg->id, msg->request, conn != NULL ? conn->sd : -1);
 
     return msg;
+}
+
+struct msg *
+msg_clone(struct msg *msg)
+{
+    struct msg *clone;
+    struct mbuf *src, *dst;
+    
+    /* Clone message structure */
+    clone = msg_get(msg->owner, msg->request, msg->redis);
+    if (clone == NULL) {
+        return NULL;
+    }
+
+    /* Clone mbufs */
+    STAILQ_FOREACH(src, &msg->mhdr, next) {
+        dst = mbuf_get();
+        if (dst == NULL) {
+            msg_put(clone);
+            return NULL;
+        }
+
+        mbuf_copy(dst, src->pos, mbuf_length(src));
+        mbuf_insert(&clone->mhdr, dst);
+    }
+    
+    clone->type = msg->type;
+    clone->err = msg->err;
+    clone->error = msg->error;
+    clone->noreply = msg->noreply;
+    clone->swallow = msg->swallow;
+    
+    return clone;
 }
 
 struct msg *
