@@ -449,7 +449,11 @@ conf_dump(struct conf *cf)
                   cp->server_failure_limit);
         log_debug(LOG_VVERB, "  rate: %d", cp->rate);
         log_debug(LOG_VVERB, "  burst: %d", cp->burst);
-
+        log_debug(LOG_VVERB, "  auto_probe_hosts: %d", cp->auto_probe_hosts);
+        log_debug(LOG_VVERB, "  auto_warmup: %d", cp->auto_warmup);
+        log_debug(LOG_VVERB, "  gutter: \"%.*s\"", cp->gutter.len, cp->gutter.data);
+        log_debug(LOG_VVERB, "  peer: \"%.*s\"", cp->peer.len, cp->peer.data);
+        
         if (!cp->virtual) {
             log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace);
 

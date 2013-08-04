@@ -1128,7 +1128,7 @@ server_each_probe(void *elem, void *data)
     }
 
     if (server->next_probe > now) {
-        log_debug(LOG_VERB, "server: probe in %"PRIu64"s", 
+        log_debug(LOG_VVVERB, "server: probe in %"PRIu64"s", 
                   (server->next_probe - now)/1000000);
         return NC_OK;
     }
@@ -1228,7 +1228,7 @@ server_pool_each_update_ratelimit(void *elem, void *data)
         }
     }
 
-    log_debug(LOG_VERB, "ratelimit: %.*s rate: %.2f burst: %.2f count: %.2f",
+    log_debug(LOG_VVVERB, "ratelimit: %.*s rate: %.2f burst: %.2f count: %.2f",
               pool->name.len, pool->name.data,
               pool->rate, pool->burst, pool->count);
 

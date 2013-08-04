@@ -1554,17 +1554,6 @@ memcache_handle_probe(struct msg *req, struct msg *rsp)
         val = array_get(vals, i);
         status = memcache_update_stat(stats, key, val);
     }
-    
-    log_debug(LOG_VERB,
-              "uptime: %"PRIu32"\n"
-              "cold: %"PRIu32"\n"
-              "cmd_get: %"PRIu64"\n"
-              "get_hits: %"PRIu64"\n",
-              stats->uptime,
-              stats->cold,
-              stats->cmd_get,
-              stats->get_hits
-        );
 }       
 
 struct memcache_stats *
