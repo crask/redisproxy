@@ -462,6 +462,39 @@ req_hash_key(const uint8_t *start, const uint8_t *end, const struct string *tag,
     }
 }
 
+static rstatus_t
+req_enqueue(struct context *ctx, struct conn *s_conn, struct msg *msg)
+{
+    rstatus_t status;
+
+    if (TAILQ_EMPTY(&s_conn->imsg_q)) {
+        status = event_add_out(ctx->evb, s_conn);
+        if (status != NC_OK) {
+            s_conn->err = errno;
+            return status;
+        }
+    }
+
+    s_conn->enqueue_inq(ctx, s_conn, msg);
+
+    return NC_OK;
+}
+
+static void
+req_clone(struct context *ctx, struct conn *s_conn, struct msg *msg)
+{
+    struct msg *clone;
+    
+    clone = msg_clone(msg);
+    if (clone == NULL) {
+        return;
+    }
+    
+    clone->owner = NULL;        /* Special purpose request */
+    clone->swallow = 1;         /* Discard the response */
+    
+    req_enqueue(ctx, s_conn, clone);
+}
 
 static void
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
@@ -516,27 +549,29 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         if (peer != NULL) {
             f_conn = server_pool_conn(ctx, peer, key.data, key.len);
             if (f_conn != NULL && !server_cold(f_conn)) {
+                /*
+                 * Send a clone request to the backend to calculate
+                 * the hit rate. The response will be discarded.
+                 */
+                req_clone(ctx, s_conn, msg);
+                /* Record the original target */
                 msg->target = s_conn;
+
                 s_conn = f_conn;                
                 log_debug(LOG_VERB, "fallback to peer connection");
             }
         }
     }
     ASSERT(!s_conn->client && !s_conn->proxy);
-
+    
     /* enqueue the message (request) into server inq */
-    if (TAILQ_EMPTY(&s_conn->imsg_q)) {
-        status = event_add_out(ctx->evb, s_conn);
-        if (status != NC_OK) {
-            req_forward_error(ctx, c_conn, msg);
-            s_conn->err = errno;
-            return;
-        }
+    status = req_enqueue(ctx, s_conn, msg);
+    if (status != NC_OK) {
+        req_forward_error(ctx, c_conn, msg);
+        return;
     }
-    s_conn->enqueue_inq(ctx, s_conn, msg);
 
     req_forward_stats(ctx, s_conn->owner, msg);
-
     log_debug(LOG_VERB, "forward from c %d to s %d req %"PRIu64" len %"PRIu32
               " type %d with key '%.*s'", c_conn->sd, s_conn->sd, msg->id,
               msg->mlen, msg->type, key.len, key.data);
