@@ -903,6 +903,28 @@ server_pool_each_set_peer(void *elem, void *data)
     return NC_OK;
 }
 
+static rstatus_t
+server_pool_each_set_message_queue(void *elem, void *data)
+{
+    struct server_pool *sp = elem, *pool;
+    struct array *pool_array = data;
+    uint32_t pool_index;
+    
+    if (!string_empty(&sp->message_queue_name)) {
+        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+            pool = array_get(pool_array, pool_index);
+
+            if (string_compare(&pool->name, &sp->message_queue_name) == 0 &&
+                pool->redis) {
+                sp->message_queue = pool;
+                return NC_OK;
+            }
+        }
+        return NC_ERROR;
+    }
+    
+    return NC_OK;
+}
 
 static rstatus_t
 server_pool_each_set_downstreams(void *elem, void *data)

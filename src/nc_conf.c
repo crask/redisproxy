@@ -134,6 +134,10 @@ static struct command conf_commands[] = {
       conf_set_num,
       offsetof(struct conf_pool, burst) },
 
+    { string("message_queue"),
+      conf_set_string,
+      offsetof(struct conf_pool, message_queue) },
+
     null_command
 };
 
@@ -246,10 +250,11 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     string_init(&cp->gutter);
     string_init(&cp->peer);
     string_init(&cp->namespace);
-    
+    string_init(&cp->message_queue);
+
     cp->rate = CONF_UNSET_NUM;
     cp->burst = CONF_UNSET_NUM;
-
+    
     status = string_duplicate(&cp->name, name);
     if (status != NC_OK) {
         return status;
@@ -291,6 +296,7 @@ conf_pool_deinit(struct conf_pool *cp)
     string_deinit(&cp->gutter);
     string_deinit(&cp->peer);
     string_deinit(&cp->namespace);
+    string_deinit(&cp->message_queue);
 
     while (array_n(&cp->downstreams) != 0) {
         string_deinit(array_pop(&cp->downstreams));
@@ -374,7 +380,10 @@ conf_pool_each_transform(void *elem, void *data)
     sp->rate = cp->rate;
     sp->burst = cp->burst;
     sp->count = 0;
-
+    
+    sp->message_queue_name = cp->message_queue;
+    sp->message_queue = NULL;
+    
     if (sp->virtual) {
         status = array_init(&sp->downstream_names, 
                             array_n(&cp->downstreams), sizeof(struct string));
@@ -453,6 +462,8 @@ conf_dump(struct conf *cf)
         log_debug(LOG_VVERB, "  auto_warmup: %d", cp->auto_warmup);
         log_debug(LOG_VVERB, "  gutter: \"%.*s\"", cp->gutter.len, cp->gutter.data);
         log_debug(LOG_VVERB, "  peer: \"%.*s\"", cp->peer.len, cp->peer.data);
+        log_debug(LOG_VVERB, "  message_queue: \"%.*s\"", cp->message_queue.len,
+                  cp->message_queue.data);
         
         if (!cp->virtual) {
             log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace);

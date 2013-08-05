@@ -147,6 +147,9 @@ struct server_pool {
     float              rate;                 /* # of request per second*/
     float              burst;                /* max bursts of requests */
     float              count;                /* # of request in the bucket */
+
+    struct string      message_queue_name;   /* name of message queue */
+    struct server_pool *message_queue;       /* message queue */
 };
 
 void server_ref(struct conn *conn, void *owner);

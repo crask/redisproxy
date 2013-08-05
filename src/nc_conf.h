@@ -107,6 +107,8 @@ struct conf_pool {
     int                burst;                /* max bursts of requests */
     
     int                auto_warmup;          /* auto warmup */
+
+    struct string      message_queue;        /* message queue */
 };
 
 struct conf {
