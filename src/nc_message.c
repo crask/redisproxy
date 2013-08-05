@@ -417,8 +417,8 @@ msg_put(struct msg *msg)
         mbuf_put(mbuf);
     }
     
-    array_reset(&msg->keys);
-    array_reset(&msg->vals);
+    array_rewind(&msg->keys);
+    array_rewind(&msg->vals);
 
     nfree_msgq++;
     TAILQ_INSERT_HEAD(&free_msgq, msg, m_tqe);

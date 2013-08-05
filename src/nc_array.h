@@ -57,7 +57,7 @@ array_n(const struct array *a)
 }
 
 static inline void
-array_reset(struct array *a)
+array_rewind(struct array *a)
 {
     a->nelem = 0;
 }
