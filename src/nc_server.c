@@ -866,19 +866,19 @@ server_pool_each_set_gutter(void *elem, void *data)
     struct array *pool_array = data;
     uint32_t pool_index;
     
-    if (!string_empty(&sp->gutter_name)) {
-        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
-            pool = array_get(pool_array, pool_index);
-
-            if (string_compare(&pool->name, &sp->gutter_name) == 0) {
-                sp->gutter = pool;
-                return NC_OK;
-            }
-        }
-        return NC_ERROR;
+    if (string_empty(&sp->gutter_name)) {
+        return NC_OK;
     }
-    
-    return NC_OK;
+    for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+        pool = array_get(pool_array, pool_index);
+
+        if (string_compare(&pool->name, &sp->gutter_name) == 0 &&
+            pool->redis == sp->redis) {
+            sp->gutter = pool;
+            return NC_OK;
+        }
+    }
+    return NC_ERROR;
 }
 
 static rstatus_t
@@ -888,19 +888,19 @@ server_pool_each_set_peer(void *elem, void *data)
     struct array *pool_array = data;
     uint32_t pool_index;
     
-    if (!string_empty(&sp->peer_name)) {
-        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
-            pool = array_get(pool_array, pool_index);
-
-            if (string_compare(&pool->name, &sp->peer_name) == 0) {
-                sp->peer = pool;
-                return NC_OK;
-            }
-        }
-        return NC_ERROR;
+    if (string_empty(&sp->peer_name)) {
+        return NC_OK;
     }
-    
-    return NC_OK;
+    for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+        pool = array_get(pool_array, pool_index);
+
+        if (string_compare(&pool->name, &sp->peer_name) == 0 &&
+            pool->redis == sp->redis) {
+            sp->peer = pool;
+            return NC_OK;
+        }
+    }
+    return NC_ERROR;
 }
 
 static rstatus_t
@@ -910,20 +910,19 @@ server_pool_each_set_message_queue(void *elem, void *data)
     struct array *pool_array = data;
     uint32_t pool_index;
     
-    if (!string_empty(&sp->message_queue_name)) {
-        for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
-            pool = array_get(pool_array, pool_index);
-
-            if (string_compare(&pool->name, &sp->message_queue_name) == 0 &&
-                pool->redis) {
-                sp->message_queue = pool;
-                return NC_OK;
-            }
-        }
-        return NC_ERROR;
+    if (string_empty(&sp->message_queue_name)) {
+        return NC_OK;
     }
-    
-    return NC_OK;
+    for (pool_index = 0; pool_index < array_n(pool_array); pool_index++) {
+        pool = array_get(pool_array, pool_index);
+
+        if (string_compare(&pool->name, &sp->message_queue_name) == 0 &&
+            pool->redis) {
+            sp->message_queue = pool;
+            return NC_OK;
+        }
+    }
+    return NC_ERROR;
 }
 
 static rstatus_t
@@ -943,7 +942,7 @@ server_pool_each_set_downstreams(void *elem, void *data)
         return NC_OK;
     }
     
-
+    ASSERT(array_n(&sp->downstream_names) > 0);
     
     for (dsi = 0; dsi < array_n(&sp->downstream_names); dsi++) {
         ds_name = array_get(&sp->downstream_names, dsi);
