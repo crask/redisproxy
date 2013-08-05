@@ -1122,6 +1122,7 @@ server_pool_deinit(struct array *server_pool)
             sp->nlive_server = 0;
         }
         
+        array_rewind(&sp->downstream_names);
         array_deinit(&sp->downstream_names);
 
         if (sp->downstreams != NULL) {
