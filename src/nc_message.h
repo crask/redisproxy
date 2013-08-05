@@ -27,6 +27,8 @@ typedef rstatus_t (*msg_build_probe_t)(struct msg *);
 typedef bool (*msg_need_warmup_t)(struct msg *, struct msg *);
 typedef rstatus_t (*msg_build_warmup_t)(struct msg *, struct msg *, struct msg *);
 typedef void (*msg_handle_probe_t)(struct msg *, struct msg *);
+typedef bool (*msg_need_notify_t)(struct msg *);
+typedef struct msg* (*msg_build_notify_t)(struct msg *);
 
 typedef enum msg_parse_result {
     MSG_PARSE_OK,                         /* parsing ok */
@@ -193,6 +195,8 @@ struct msg {
     msg_handle_probe_t   handle_probe;    /* message handle probe */
     msg_need_warmup_t    need_warmup;     /* message need warmup */
     msg_build_warmup_t   build_warmup;    /* message build warmup */
+    msg_need_notify_t    need_notify;     /* message need notify */
+    msg_build_notify_t   build_notify;    /* message build notify */
     
     msg_type_t           type;            /* message type */
 

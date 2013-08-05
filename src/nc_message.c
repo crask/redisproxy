@@ -302,6 +302,8 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->handle_probe = redis_handle_probe;
         msg->need_warmup = redis_need_warmup;
         msg->build_warmup = NULL;
+        msg->need_notify = NULL;
+        msg->build_notify = NULL;
     } else {
         if (request) {
             msg->parser = memcache_parse_req;
@@ -316,6 +318,8 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->handle_probe = memcache_handle_probe;
         msg->need_warmup = memcache_need_warmup;
         msg->build_warmup = memcache_build_warmup;
+        msg->need_notify = memcache_need_notify;
+        msg->build_notify = memcache_build_notify;
     }
 
     log_debug(LOG_VVERB, "get msg %p id %"PRIu64" request %d owner sd %d",

@@ -1614,7 +1614,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
 {
     struct mbuf *src, *dst;
     int n;
-    uint32_t remain, length;
+    uint32_t remain, length, msize;
     uint8_t *pos;
     
     ASSERT(rsp->key_start && rsp->key_end);
@@ -1627,19 +1627,15 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
     }
     mbuf_insert(&msg->mhdr, dst);
 
-    ASSERT(mbuf_empty(dst));
-
+    msize = mbuf_size(dst);
     /* Write command line */
-    n = nc_scnprintf(dst->last, mbuf_size(dst), "set %.*s %.*s %d %d noreply\r\n",
+    n = nc_scnprintf(dst->last, msize, "set %.*s %.*s %d %d noreply\r\n",
                      (int)(rsp->key_end - rsp->key_start), rsp->key_start,
                      (int)(rsp->flags_end - rsp->flags_start), rsp->flags_start,
                      0,
                      rsp->vlen);
-    if (n < 0 || n > (int)mbuf_size(dst)) {
-        return NC_ERROR;
-    }
-    
     dst->last += n;
+    ASSERT(dst->last <= dst->end);
     
     remain = rsp->vlen + 2;     /* <data block>\r\n */
     STAILQ_FOREACH(src, &rsp->mhdr, next) {
@@ -1670,4 +1666,70 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
     msg->noreply = 1;
 
     return NC_OK;
+}
+
+bool
+memcache_need_notify(struct msg *req)
+{
+    return memcache_delete(req);
+}
+
+static char *
+memcache_type_string(msg_type_t type)
+{
+    switch (type) {
+    case MSG_REQ_MC_DELETE:
+        return "delete";
+    default:
+        return NULL;
+    }
+}
+struct msg *
+memcache_build_notify(struct msg *req)
+{
+    struct msg *msg;
+    struct conn *c_conn;
+    struct server_pool *pool;
+    struct mbuf *mbuf;
+    char *cmd;
+    int n;
+
+    c_conn = req->owner;
+    pool = c_conn->owner;
+    cmd = memcache_type_string(req->type);
+
+    ASSERT(c_conn != NULL && pool != NULL && cmd != NULL);
+
+    msg = msg_get(NULL, true, c_conn->redis);
+    if (msg == NULL) {
+        return NULL;
+    }
+
+    mbuf = mbuf_get();
+    if (mbuf == NULL) {
+        msg_put(msg);
+        return NULL;
+    }
+    mbuf_insert(&msg->mhdr, mbuf);
+
+    n = nc_scnprintf(mbuf->last, mbuf_size(mbuf), 
+                     "*3\r\n"
+                     "$5\r\n"
+                     "LPUSH\r\n"
+                     "$%d\r\n"
+                     "%.*s\r\n" /* pid */
+                     "$%d\r\n"
+                     "%s %.*s\r\n", /* "cmd req_key" */
+                     pool->name.len,
+                     pool->name.len, pool->name.data,
+                     strlen(cmd) + 1 + (req->key_end - req->key_start),
+                     cmd, 
+                     req->key_end - req->key_start, req->key_start);
+    log_debug(LOG_VERB, "notify: %.*s", n, mbuf->last);
+    mbuf->last += n;
+    ASSERT(mbuf->last <= mbuf->end);
+    
+    msg->swallow = 1;
+
+    return msg;
 }

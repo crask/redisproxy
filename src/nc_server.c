@@ -1083,6 +1083,13 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
+    status = array_each(server_pool, server_pool_each_set_message_queue, server_pool);
+    if (status != NC_OK) {
+        log_error("server: failed to set message queue");
+        server_pool_deinit(server_pool);
+        return status;
+    }
+
     /* update server pool continuum */
     status = array_each(server_pool, server_pool_each_run, NULL);
     if (status != NC_OK) {
