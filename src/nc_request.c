@@ -431,8 +431,8 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
         return true;
     }
 
-    if (msg->pre_forward != NULL && 
-        msg->pre_forward(ctx, conn, msg) != NC_OK) {
+    if (msg->pre_req_forward != NULL && 
+        msg->pre_req_forward(ctx, conn, msg) != NC_OK) {
         req_forward_error(ctx, conn, msg);
         return true;
     }
@@ -487,27 +487,11 @@ req_enqueue(struct context *ctx, struct conn *s_conn, struct msg *msg)
 }
 
 static void
-req_clone(struct context *ctx, struct conn *s_conn, struct msg *msg)
-{
-    struct msg *clone;
-    
-    clone = msg_clone(msg);
-    if (clone == NULL) {
-        return;
-    }
-    
-    clone->owner = NULL;        /* Special purpose request */
-    clone->swallow = 1;         /* Discard the response */
-    
-    req_enqueue(ctx, s_conn, clone);
-}
-
-static void
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
-    struct conn *s_conn, *f_conn; /* fallback connection */
-    struct server_pool *pool, *gutter, *peer;
+    struct conn *s_conn; /* fallback connection */
+    struct server_pool *pool;
     struct string key = null_string;
 
     ASSERT(c_conn->client && !c_conn->proxy);
@@ -533,43 +517,20 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         string_set(&key, msg->key_start, (msg->key_end - msg->key_start));
     }
 
-    s_conn = server_pool_conn(ctx, pool, key.data, key.len);
-    if (s_conn == NULL) {       /* Automatic failover logic */
-        gutter = pool->gutter;
-        /* Fallback to the gutter pool */
-        if (gutter != NULL) {
-            f_conn = server_pool_conn(ctx, gutter, key.data, key.len);
-            if (f_conn == NULL) {
-                req_forward_error(ctx, c_conn, msg);
-                return;
-            }
-            s_conn = f_conn;
-            log_debug(LOG_VERB, "fallback to gutter connection");
-        } else {
-            req_forward_error(ctx, c_conn, msg);
-            return;
-        }
-    } else if (server_cold(s_conn)) { /* Automatic warmup logic */
-        peer = pool->peer;
-        /* Fallback to the peer pool if possible */
-        if (peer != NULL) {
-            f_conn = server_pool_conn(ctx, peer, key.data, key.len);
-            if (f_conn != NULL && !server_cold(f_conn)) {
-                /*
-                 * Send a clone request to the backend to calculate
-                 * the hit rate. The response will be discarded.
-                 */
-                req_clone(ctx, s_conn, msg);
-                /* Record the original target */
-                msg->target = s_conn;
-
-                s_conn = f_conn;                
-                log_debug(LOG_VERB, "fallback to peer connection");
-            }
-        }
+    s_conn = msg->routing(ctx, pool, msg, &key);
+    if (s_conn == NULL) {
+        req_forward_error(ctx, c_conn, msg);
+        return;
     }
+
     ASSERT(!s_conn->client && !s_conn->proxy);
-    
+
+    if (msg->post_routing != NULL &&
+        msg->post_routing(ctx, s_conn, msg) != NC_OK) {
+        req_forward_error(ctx, c_conn, msg);
+        return;
+    }
+
     /* enqueue the message (request) into server inq */
     status = req_enqueue(ctx, s_conn, msg);
     if (status != NC_OK) {

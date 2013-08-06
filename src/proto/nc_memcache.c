@@ -51,7 +51,8 @@ struct stats_command {
     int offset;
 };
 
-char *stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *val)
+static char *
+stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *val)
 {
     uint8_t *p;
     int num;
@@ -70,7 +71,8 @@ char *stats_set_uint(struct memcache_stats *s, struct stats_command *cmd, void *
     return STATS_OK;
 }
 
-char *stats_set_ulong(struct memcache_stats *s, struct stats_command *cmd, void *val)
+static char *
+stats_set_ulong(struct memcache_stats *s, struct stats_command *cmd, void *val)
 {
     uint8_t *p;
     int num;   
@@ -1530,7 +1532,7 @@ memcache_build_probe(struct msg *r)
     return NC_OK;
 }
 
-void
+static void
 memcache_handle_probe(struct msg *req, struct msg *rsp)
 {
     rstatus_t status;
@@ -1575,17 +1577,19 @@ memcache_destroy_stats(struct memcache_stats *stats)
     nc_free(stats);
 }
 
-
-bool
-memcache_cold(struct memcache_stats *stats)
+static bool
+memcache_cold(struct conn *conn)
 {
-    ASSERT(stats != NULL);
-
+    struct server *server;
+    struct memcache_stats *stats;
+    
+    server = conn->owner;
+    stats = server->stats;
+    
     return stats->cold == 1;
 }
 
-
-bool
+static bool
 memcache_need_warmup(struct msg *req, struct msg *rsp)
 {
     /* Only handle get */
@@ -1609,9 +1613,11 @@ memcache_need_warmup(struct msg *req, struct msg *rsp)
    set <key> <flags> <exptime> <bytes> noreply\r\n
    <data block>\r\n
  */
-rstatus_t
-memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
+static struct msg *
+memcache_build_warmup(struct msg *req, struct msg *rsp)
 {
+    struct msg *msg;
+    struct conn *conn;
     struct mbuf *src, *dst;
     int n;
     uint32_t remain, length, msize;
@@ -1621,9 +1627,17 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
     ASSERT(rsp->flags_start && rsp->flags_end);
     ASSERT(rsp->vlen > 0);
     
+    conn = req->owner;
+
+    msg = msg_get(NULL, true, conn->redis);
+    if (msg == NULL) {
+        return NULL;
+    }
+
     dst = mbuf_get();
     if (dst == NULL) {
-        return NC_ENOMEM;
+        msg_put(msg);
+        return NULL;
     }
     mbuf_insert(&msg->mhdr, dst);
 
@@ -1650,7 +1664,8 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
             if (mbuf_full(dst)) {
                 dst = mbuf_get();
                 if (dst == NULL) {
-                    return NC_ENOMEM;
+                    msg_put(msg);
+                    return NULL;
                 }
                 mbuf_insert(&msg->mhdr, dst);
             }
@@ -1663,9 +1678,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
         }
     }
     
-    msg->noreply = 1;
-
-    return NC_OK;
+    return msg;
 }
 
 static char *
@@ -1731,7 +1744,7 @@ memcache_build_notify(struct msg *req)
 
 
 rstatus_t
-memcache_pre_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
+memcache_pre_req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
     struct server_pool *pool, *mq;
@@ -1768,9 +1781,123 @@ memcache_pre_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     status = req_enqueue(ctx, conn, n_msg);
     if (status != NC_OK) {
-        msg_put(n_msg);
+        req_put(n_msg);
         return status;
     }
 
+    return NC_OK;
+}
+
+struct conn *
+memcache_routing(struct context *ctx, struct server_pool *pool, 
+                 struct msg *msg, struct string *key)
+{
+    struct conn *s_conn, *f_conn;
+    struct server_pool *gutter, *peer;
+    
+    s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+
+    /* Automatic failover logic */
+    if (s_conn == NULL) {       
+        gutter = pool->gutter;
+        /* Fallback to the gutter pool */
+        if (gutter != NULL) {
+            f_conn = server_pool_conn(ctx, gutter, key->data, key->len);
+            if (f_conn != NULL) {
+                log_debug(LOG_VERB, "fallback to gutter connection");
+                return f_conn;
+            }
+        } 
+
+        return NULL;
+    } 
+
+    /* Automatic warmup logic */
+    if (memcache_cold(s_conn)) { 
+        peer = pool->peer;
+        /* Fallback to the peer pool if possible */
+        if (peer != NULL) {
+            f_conn = server_pool_conn(ctx, peer, key->data, key->len);
+            if (f_conn != NULL && !memcache_cold(f_conn)) {
+                /* Record the original target */
+                msg->origin = s_conn;
+                log_debug(LOG_VERB, "fallback to peer connection");
+                return f_conn;
+            }
+        }
+    }
+
+    return s_conn;
+}
+
+/* Always return NC_OK */
+rstatus_t
+memcache_post_routing(struct context *ctx, struct conn *s_conn, struct msg *msg)
+{
+    rstatus_t status;
+    struct msg *clone;
+
+    if (msg->origin == NULL) {
+        return NC_OK;
+    }
+
+    clone = msg_clone(msg);
+    if (clone == NULL) {
+        return NC_OK;
+    }
+
+    clone->owner = NULL;        /* Special purpose request */
+    clone->swallow = 1;         /* Discard the response */
+    
+    status = req_enqueue(ctx, s_conn, clone);
+    if (status != NC_OK) {
+        req_put(clone);
+    }
+
+    return NC_OK;
+}
+
+rstatus_t
+memcache_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
+{
+    rstatus_t status;
+    struct msg *pmsg;
+    struct conn *c_conn;
+    
+    pmsg = msg->peer;           /* request */
+    c_conn = pmsg->owner;
+
+    /* Handle probe response */
+    if (c_conn == NULL) {
+        memcache_handle_probe(pmsg, msg);
+        req_put(pmsg);
+        return NC_OK;
+    }
+
+    /* If the request and response belong to different pools, either
+     * we have a connection to be warmup up, or the response came from a
+     * gutter
+     */
+    if (c_conn->owner == s_conn->owner || pmsg->origin == NULL) {
+        return NC_OK;
+    }
+
+    if (!memcache_need_warmup(pmsg, msg)) {
+        return NC_OK;
+    }
+
+    msg = memcache_build_warmup(pmsg, msg);
+    if (msg == NULL) {
+        return NC_OK;
+    }
+    
+    msg->noreply = 1;
+    msg->swallow = 1;
+
+    status = req_enqueue(ctx, pmsg->origin, msg);
+    if (status != NC_OK) {
+        req_put(msg);
+    }
+    
     return NC_OK;
 }

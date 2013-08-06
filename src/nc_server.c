@@ -118,24 +118,6 @@ server_active(struct conn *conn)
     return false;
 }
 
-bool
-server_cold(struct conn *conn)
-{
-    struct server *server;
-    struct server_pool *pool;
-    
-    ASSERT(!conn->client && !conn->proxy);
-    
-    server = conn->owner;
-    pool = server->owner;
-
-    if (!pool->redis && pool->auto_warmup) {
-        return memcache_cold(server->stats);
-    } else {
-        return false;
-    }
-}
-
 static rstatus_t
 server_each_set_owner(void *elem, void *data)
 {
@@ -1189,17 +1171,11 @@ server_each_probe(void *elem, void *data)
     if (msg == NULL) {
         return NC_OK;
     }
-    
-    if (TAILQ_EMPTY(&conn->imsg_q)) {
-        status = event_add_out(pool->ctx->evb, conn);
-        if (status != NC_OK) {
-            req_put(msg);
-            conn->err = errno;
-            return NC_OK;
-        }
-    }
 
-    conn->enqueue_inq(pool->ctx, conn, msg);
+    status = req_enqueue(pool->ctx, conn, msg);
+    if (status != NC_OK) {
+        req_put(msg);
+    }
 
     log_debug(LOG_VERB, "probe sent to %.*s", 
               server->pname.len, server->pname.data);
@@ -1288,40 +1264,4 @@ server_pool_ratelimit(struct server_pool *pool)
     } else {
         return false;
     }                
-}
-
-
-void 
-server_warmup(struct msg *req, struct msg *rsp)
-{
-    rstatus_t status;
-    struct conn *conn;
-    struct server *server;
-    struct server_pool *pool;
-    struct msg *msg;
-
-    conn = req->target;
-    server = conn->owner;
-    pool = server->owner;
-
-    msg = msg_build_warmup(req, rsp);
-    if (msg == NULL) {
-        return;
-    }
-
-    ASSERT(msg->noreply);
-
-    if (TAILQ_EMPTY(&conn->imsg_q)) {
-        status = event_add_out(pool->ctx->evb, conn);
-        if (status != NC_OK) {
-            req_put(msg);
-            conn->err = errno;
-            log_warn("server: failed to add out event for warmup request");
-            return;
-        }
-    }
-    conn->enqueue_inq(pool->ctx, conn, msg);
-    
-    log_debug(LOG_VERB, "warmup sent to %.*s",
-              server->pname.len, server->pname.data);
 }

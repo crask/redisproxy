@@ -145,29 +145,40 @@
 
 void memcache_parse_req(struct msg *r);
 void memcache_parse_rsp(struct msg *r);
+
 void memcache_pre_splitcopy(struct mbuf *mbuf, void *arg);
 rstatus_t memcache_post_splitcopy(struct msg *r);
+
 void memcache_pre_coalesce(struct msg *r);
 void memcache_post_coalesce(struct msg *r);
-rstatus_t memcache_pre_forward(struct context *, struct conn *, struct msg *);
+
+rstatus_t memcache_pre_req_forward(struct context *, struct conn *, struct msg *);
+rstatus_t memcache_post_rsp_forward(struct context *, struct conn *, struct msg *);
+
 rstatus_t memcache_build_probe(struct msg *r);
-void memcache_handle_probe(struct msg *req, struct msg *rsp);
+
 struct memcache_stats *memcache_create_stats();
 void memcache_destroy_stats(struct memcache_stats *stats);
-bool memcache_cold(struct memcache_stats *stats);
-bool memcache_need_warmup(struct msg *req, struct msg *rsp);
-rstatus_t memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg);
+
+struct conn *memcache_routing(struct context *ctx, struct server_pool *pool, struct msg *msg, struct string *key);
+rstatus_t memcache_post_routing(struct context *ctx, struct conn *conn, struct msg *msg);
 
 void redis_parse_req(struct msg *r);
 void redis_parse_rsp(struct msg *r);
+
 void redis_pre_splitcopy(struct mbuf *mbuf, void *arg);
 rstatus_t redis_post_splitcopy(struct msg *r);
+
 void redis_pre_coalesce(struct msg *r);
 void redis_post_coalesce(struct msg *r);
+
+rstatus_t redis_post_rsp_forward(struct context *, struct conn *, struct msg *);
+
 rstatus_t redis_build_probe(struct msg *r);
-void redis_handle_probe(struct msg *req, struct msg *rsp);
+
 struct redis_stats *redis_create_stats();
 void redis_destroy_stats(struct redis_stats *stats);
-bool redis_need_warmup(struct msg *req, struct msg *rsp);
+
+struct conn *redis_routing(struct context *ctx, struct server_pool *pool, struct msg *msg, struct string *key);
 
 #endif

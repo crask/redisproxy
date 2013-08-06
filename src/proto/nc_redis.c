@@ -20,6 +20,7 @@
 
 #include <nc_core.h>
 #include <nc_proto.h>
+#include <nc_server.h>
 
 #define REDIS_PROBE_MESSAGE "*1\r\n$4\r\ninfo\r\n"
 
@@ -2160,7 +2161,7 @@ redis_build_probe(struct msg *r)
     return NC_OK;    
 }
 
-void
+static void
 redis_handle_probe(struct msg *req, struct msg *rsp)
 {
     
@@ -2187,8 +2188,33 @@ redis_destroy_stats(struct redis_stats *stats)
 }
 
 
-bool
-redis_need_warmup(struct msg *req, struct msg *rsp)
+struct conn *
+redis_routing(struct context *ctx, struct server_pool *pool, struct msg *msg,
+              struct string *key)
 {
-    return false;
+    struct conn *s_conn;
+    
+    s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+
+    return s_conn;
+} 
+
+
+rstatus_t
+redis_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
+{
+    struct msg *pmsg;
+    struct conn *c_conn;
+
+    pmsg = msg->peer;
+    c_conn = pmsg->owner;
+
+    /* Handle probe response */
+    if (c_conn == NULL) {
+        redis_handle_probe(pmsg, msg);
+        req_put(pmsg);
+        return NC_OK;
+    }
+
+    return NC_OK;
 }

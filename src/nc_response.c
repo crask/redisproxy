@@ -213,14 +213,6 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     msg->peer = pmsg;
 
     msg->pre_coalesce(msg);
-
-    /* handle probe message sent from proxy */
-    if (pmsg->owner == NULL) {
-        pmsg->handle_probe(pmsg, msg);
-        stats_server_set(ctx, s_conn->owner, cold, server_cold(s_conn) ? 1 : 0);
-        req_put(pmsg);
-        return;
-    }
     
     c_conn = pmsg->owner;
     ASSERT(c_conn->client && !c_conn->proxy);
@@ -232,14 +224,11 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
         }
     }
 
-    /* If the request and response belong to different pools, either
-     * we have a connection to be warmup up, or the response came from a
-     * gutter
-     */
-    if (c_conn->owner != s_conn->owner && pmsg->target != NULL) {
-        server_warmup(pmsg, msg);
+    if (msg->post_rsp_forward != NULL &&
+        msg->post_rsp_forward(ctx, s_conn, msg) != NC_OK) {
+        /* TODO: error handling */
     }
-
+    
     rsp_forward_stats(ctx, s_conn->owner, msg);
 }
 

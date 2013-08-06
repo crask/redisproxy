@@ -216,7 +216,7 @@ done:
     msg->id = ++msg_id;
     msg->peer = NULL;
     msg->owner = NULL;
-    msg->target = NULL;
+    msg->origin = NULL;
 
     rbtree_node_init(&msg->tmo_rbe);
 
@@ -298,12 +298,11 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = redis_post_splitcopy;
         msg->pre_coalesce = redis_pre_coalesce;
         msg->post_coalesce = redis_post_coalesce;
-        msg->pre_forward = NULL;
-        
+        msg->pre_req_forward = NULL;
+        msg->routing = redis_routing;
+        msg->post_routing = NULL;
+        msg->post_rsp_forward = redis_post_rsp_forward;
         msg->build_probe = redis_build_probe;
-        msg->handle_probe = redis_handle_probe;
-        msg->need_warmup = redis_need_warmup;
-        msg->build_warmup = NULL;
     } else {
         if (request) {
             msg->parser = memcache_parse_req;
@@ -314,12 +313,11 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = memcache_post_splitcopy;
         msg->pre_coalesce = memcache_pre_coalesce;
         msg->post_coalesce = memcache_post_coalesce;
-        msg->pre_forward = memcache_pre_forward;
-
+        msg->pre_req_forward = memcache_pre_req_forward;
+        msg->routing = memcache_routing;
+        msg->post_routing = memcache_post_routing;
+        msg->post_rsp_forward = memcache_post_rsp_forward;
         msg->build_probe = memcache_build_probe;
-        msg->handle_probe = memcache_handle_probe;
-        msg->need_warmup = memcache_need_warmup;
-        msg->build_warmup = memcache_build_warmup;
     }
 
     log_debug(LOG_VVERB, "get msg %p id %"PRIu64" request %d owner sd %d",
@@ -915,36 +913,4 @@ msg_send(struct context *ctx, struct conn *conn)
     } while (conn->send_ready);
 
     return NC_OK;
-}
-
-struct msg *
-msg_build_warmup(struct msg *req, struct msg *rsp)
-{
-    rstatus_t status;
-    struct conn *conn;
-    struct msg *msg;
-
-    conn = req->owner;
-    
-    ASSERT(conn != NULL);
-    ASSERT(req->need_warmup != NULL);
-
-    if (!req->need_warmup(req, rsp)) {
-        return NULL;
-    }
-    
-    ASSERT(req->build_warmup != NULL);
-
-    msg = msg_get(NULL, true, conn->redis);
-    if (msg == NULL) {
-        return NULL;
-    }
-    
-    status = req->build_warmup(req, rsp, msg);
-    if (status != NC_OK) {
-        msg_put(msg);
-        return NULL;
-    }
-    
-    return msg;
 }
