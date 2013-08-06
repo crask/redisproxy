@@ -1668,12 +1668,6 @@ memcache_build_warmup(struct msg *req, struct msg *rsp, struct msg *msg)
     return NC_OK;
 }
 
-bool
-memcache_need_notify(struct msg *req)
-{
-    return memcache_delete(req);
-}
-
 static char *
 memcache_type_string(msg_type_t type)
 {
@@ -1684,7 +1678,8 @@ memcache_type_string(msg_type_t type)
         return NULL;
     }
 }
-struct msg *
+
+static struct msg *
 memcache_build_notify(struct msg *req)
 {
     struct msg *msg;
@@ -1732,4 +1727,50 @@ memcache_build_notify(struct msg *req)
     msg->swallow = 1;
 
     return msg;
+}
+
+
+rstatus_t
+memcache_pre_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
+{
+    rstatus_t status;
+    struct server_pool *pool, *mq;
+    struct msg *n_msg;
+    struct conn *conn;
+
+    ASSERT(c_conn->client && !c_conn->proxy);
+
+    pool = c_conn->owner;
+    mq = pool->message_queue;
+    if (mq == NULL) {
+        return NC_OK;
+    }
+    
+    /* Only delete requests need to be notified */
+    if (!memcache_delete(msg)) {
+        return NC_OK;
+    }
+
+    conn = server_pool_conn(ctx, mq, msg->key_start,
+                            (uint32_t)(msg->key_end - msg->key_start));
+    if (conn == NULL) {
+        log_error("failed to fetch connection for \"%.*s\"", 
+                  pool->name.len, pool->name.data);
+        return NC_ERROR;
+    }
+    
+    n_msg = memcache_build_notify(msg);
+    if (n_msg == NULL) {
+        log_error("failed to build notify message for \"%.*s\"", 
+                  pool->name.len, pool->name.data);
+        return NC_ERROR;
+    }
+
+    status = req_enqueue(ctx, conn, n_msg);
+    if (status != NC_OK) {
+        msg_put(n_msg);
+        return status;
+    }
+
+    return NC_OK;
 }

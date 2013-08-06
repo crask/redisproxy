@@ -27,8 +27,7 @@ typedef rstatus_t (*msg_build_probe_t)(struct msg *);
 typedef bool (*msg_need_warmup_t)(struct msg *, struct msg *);
 typedef rstatus_t (*msg_build_warmup_t)(struct msg *, struct msg *, struct msg *);
 typedef void (*msg_handle_probe_t)(struct msg *, struct msg *);
-typedef bool (*msg_need_notify_t)(struct msg *);
-typedef struct msg* (*msg_build_notify_t)(struct msg *);
+typedef rstatus_t (*msg_pre_forward_t)(struct context *, struct conn *, struct msg *);
 
 typedef enum msg_parse_result {
     MSG_PARSE_OK,                         /* parsing ok */
@@ -191,12 +190,12 @@ struct msg {
     msg_post_splitcopy_t post_splitcopy;  /* message post-split copy */
     msg_coalesce_t       pre_coalesce;    /* message pre-coalesce */
     msg_coalesce_t       post_coalesce;   /* message post-coalesce */
+    msg_pre_forward_t    pre_forward;     /* message pre-forward */
+
     msg_build_probe_t    build_probe;     /* message build probe */
     msg_handle_probe_t   handle_probe;    /* message handle probe */
     msg_need_warmup_t    need_warmup;     /* message need warmup */
     msg_build_warmup_t   build_warmup;    /* message build warmup */
-    msg_need_notify_t    need_notify;     /* message need notify */
-    msg_build_notify_t   build_notify;    /* message build notify */
     
     msg_type_t           type;            /* message type */
 
@@ -276,6 +275,7 @@ struct msg *req_recv_next(struct context *ctx, struct conn *conn, bool alloc);
 void req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg, struct msg *nmsg);
 struct msg *req_send_next(struct context *ctx, struct conn *conn);
 void req_send_done(struct context *ctx, struct conn *conn, struct msg *msg);
+rstatus_t req_enqueue(struct context *ctx, struct conn *conn, struct msg *msg);
 
 struct msg *rsp_get(struct conn *conn);
 void rsp_put(struct msg *msg);

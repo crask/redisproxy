@@ -298,12 +298,12 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = redis_post_splitcopy;
         msg->pre_coalesce = redis_pre_coalesce;
         msg->post_coalesce = redis_post_coalesce;
+        msg->pre_forward = NULL;
+        
         msg->build_probe = redis_build_probe;
         msg->handle_probe = redis_handle_probe;
         msg->need_warmup = redis_need_warmup;
         msg->build_warmup = NULL;
-        msg->need_notify = NULL;
-        msg->build_notify = NULL;
     } else {
         if (request) {
             msg->parser = memcache_parse_req;
@@ -314,12 +314,12 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->post_splitcopy = memcache_post_splitcopy;
         msg->pre_coalesce = memcache_pre_coalesce;
         msg->post_coalesce = memcache_post_coalesce;
+        msg->pre_forward = memcache_pre_forward;
+
         msg->build_probe = memcache_build_probe;
         msg->handle_probe = memcache_handle_probe;
         msg->need_warmup = memcache_need_warmup;
         msg->build_warmup = memcache_build_warmup;
-        msg->need_notify = memcache_need_notify;
-        msg->build_notify = memcache_build_notify;
     }
 
     log_debug(LOG_VVERB, "get msg %p id %"PRIu64" request %d owner sd %d",

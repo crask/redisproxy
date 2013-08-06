@@ -430,6 +430,12 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
         req_forward_error(ctx, conn, msg);
         return true;
     }
+
+    if (msg->pre_forward != NULL && 
+        msg->pre_forward(ctx, conn, msg) != NC_OK) {
+        req_forward_error(ctx, conn, msg);
+        return true;
+    }
     
     return false;
 }
@@ -462,7 +468,7 @@ req_hash_key(const uint8_t *start, const uint8_t *end, const struct string *tag,
     }
 }
 
-static rstatus_t
+rstatus_t
 req_enqueue(struct context *ctx, struct conn *s_conn, struct msg *msg)
 {
     rstatus_t status;
@@ -617,50 +623,6 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     req_forward(ctx, c_conn, msg);
 }
 
-static rstatus_t
-req_pre_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
-{
-    rstatus_t status;
-    struct server_pool *pool, *mq;
-    struct msg *n_msg;          /* notify message */
-    struct conn *conn;
-
-    ASSERT(c_conn->client && !c_conn->proxy);
-    
-    pool = c_conn->owner;
-
-    mq = pool->message_queue;
-    if (mq == NULL) {
-        return NC_OK;
-    }
-
-    if (msg->need_notify == NULL || !msg->need_notify(msg)) {
-        return NC_OK;
-    }
-
-    /* Pick a connection from the message queue server_pool */
-    conn = server_pool_conn(ctx, mq, msg->key_start, 
-                            (uint32_t)(msg->key_end - msg->key_start));
-    if (conn == NULL) {
-        return NC_ERROR;
-    }
-
-    n_msg = msg->build_notify(msg);
-    if (n_msg == NULL) {
-        return NC_ERROR;
-    }
-    
-    status = req_enqueue(ctx, conn, n_msg);
-    if (status != NC_OK) {
-        msg_put(n_msg);
-        return status;
-    }
-
-    /* TODO: update stats and debug log*/
-
-    return NC_OK;
-}
-
 void
 req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
               struct msg *nmsg)
@@ -685,7 +647,6 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     if (pool->virtual) {
         req_virtual_forward(ctx, conn, msg);
     } else {
-        req_pre_forward(ctx, conn, msg);
         req_forward(ctx, conn, msg);
     }
 }
