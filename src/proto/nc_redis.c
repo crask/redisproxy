@@ -2201,7 +2201,7 @@ redis_routing(struct context *ctx, struct server_pool *pool, struct msg *msg,
 
 
 rstatus_t
-redis_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
+redis_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
 {
     struct msg *pmsg;
     struct conn *c_conn;
@@ -2213,7 +2213,7 @@ redis_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg
     if (c_conn == NULL) {
         redis_handle_probe(pmsg, msg);
         req_put(pmsg);
-        return NC_OK;
+        return NC_ERROR;
     }
 
     return NC_OK;

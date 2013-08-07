@@ -213,6 +213,11 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     msg->peer = pmsg;
 
     msg->pre_coalesce(msg);
+
+    if (msg->pre_rsp_forward != NULL &&
+        msg->pre_rsp_forward(ctx, s_conn, msg) != NC_OK) {
+        return;
+    }
     
     c_conn = pmsg->owner;
     ASSERT(c_conn->client && !c_conn->proxy);
@@ -222,11 +227,6 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
         if (status != NC_OK) {
             c_conn->err = errno;
         }
-    }
-
-    if (msg->post_rsp_forward != NULL &&
-        msg->post_rsp_forward(ctx, s_conn, msg) != NC_OK) {
-        /* TODO: error handling */
     }
     
     rsp_forward_stats(ctx, s_conn->owner, msg);

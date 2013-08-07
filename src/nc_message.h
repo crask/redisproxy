@@ -196,7 +196,7 @@ struct msg {
     msg_forward_t        pre_req_forward; /* message pre-forward */
     msg_routing_t        routing;         /* message routing */
     msg_forward_t        post_routing;    /* message post-routing */
-    msg_forward_t        post_rsp_forward;/* message post-forward */
+    msg_forward_t        pre_rsp_forward;/* message post-forward */
 
     msg_build_probe_t    build_probe;     /* message build probe */
     

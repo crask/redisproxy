@@ -301,7 +301,7 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->pre_req_forward = NULL;
         msg->routing = redis_routing;
         msg->post_routing = NULL;
-        msg->post_rsp_forward = redis_post_rsp_forward;
+        msg->pre_rsp_forward = redis_pre_rsp_forward;
         msg->build_probe = redis_build_probe;
     } else {
         if (request) {
@@ -316,7 +316,7 @@ msg_get(struct conn *conn, bool request, bool redis)
         msg->pre_req_forward = memcache_pre_req_forward;
         msg->routing = memcache_routing;
         msg->post_routing = memcache_post_routing;
-        msg->post_rsp_forward = memcache_post_rsp_forward;
+        msg->pre_rsp_forward = memcache_pre_rsp_forward;
         msg->build_probe = memcache_build_probe;
     }
 

@@ -1858,7 +1858,7 @@ memcache_post_routing(struct context *ctx, struct conn *s_conn, struct msg *msg)
 }
 
 rstatus_t
-memcache_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
+memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
 {
     rstatus_t status;
     struct msg *pmsg;
@@ -1869,9 +1869,12 @@ memcache_post_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *
 
     /* Handle probe response */
     if (c_conn == NULL) {
+        log_debug(LOG_VERB, "handle probe");
         memcache_handle_probe(pmsg, msg);
+        stats_server_set(ctx, s_conn->owner, cold, 
+                         memcache_cold(s_conn) ? 1 : 0);
         req_put(pmsg);
-        return NC_OK;
+        return NC_ERROR;
     }
 
     /* If the request and response belong to different pools, either
