@@ -25,12 +25,10 @@ typedef rstatus_t (*msg_post_splitcopy_t)(struct msg *);
 typedef void (*msg_coalesce_t)(struct msg *r);
 
 typedef rstatus_t (*msg_build_probe_t)(struct msg *);
-typedef void (*msg_handle_probe_t)(struct msg *, struct msg *);
 
-typedef rstatus_t (*msg_pre_req_forward_t)(struct context *, struct conn *, struct msg *);
+
 typedef struct conn *(*msg_routing_t)(struct context *, struct server_pool *, struct msg *, struct string *);
-typedef rstatus_t (*msg_post_routing_t)(struct context *, struct conn *, struct msg *);
-typedef rstatus_t (*msg_post_forward_t)(struct context *, struct conn *, struct msg *);
+typedef rstatus_t (*msg_forward_t)(struct context *, struct conn *, struct msg *);
 
 typedef enum msg_parse_result {
     MSG_PARSE_OK,                         /* parsing ok */
@@ -189,17 +187,18 @@ struct msg {
     msg_parse_t          parser;          /* message parser */
     msg_parse_result_t   result;          /* message parsing result */
 
-    mbuf_copy_t           pre_splitcopy;    /* message pre-split copy */
-    msg_post_splitcopy_t  post_splitcopy;   /* message post-split copy */
-    msg_coalesce_t        pre_coalesce;     /* message pre-coalesce */
-    msg_coalesce_t        post_coalesce;    /* message post-coalesce */
-    msg_pre_req_forward_t pre_req_forward;  /* message pre-forward */
-    msg_routing_t         routing;          /* message routing */
-    msg_post_routing_t    post_routing;     /* message post-routing */
-    msg_post_forward_t    post_rsp_forward; /* message post-forward */
+    mbuf_copy_t          pre_splitcopy;   /* message pre-split copy */
+    msg_post_splitcopy_t post_splitcopy;  /* message post-split copy */
+    msg_coalesce_t       pre_coalesce;    /* message pre-coalesce */
+    msg_coalesce_t       post_coalesce;   /* message post-coalesce
+                                              * */
+
+    msg_forward_t        pre_req_forward; /* message pre-forward */
+    msg_routing_t        routing;         /* message routing */
+    msg_forward_t        post_routing;    /* message post-routing */
+    msg_forward_t        post_rsp_forward;/* message post-forward */
 
     msg_build_probe_t    build_probe;     /* message build probe */
-    msg_handle_probe_t   handle_probe;    /* message handle probe */
     
     msg_type_t           type;            /* message type */
 
@@ -263,7 +262,6 @@ bool msg_empty(struct msg *msg);
 rstatus_t msg_recv(struct context *ctx, struct conn *conn);
 rstatus_t msg_send(struct context *ctx, struct conn *conn);
 struct msg *msg_build_probe(bool redis);
-struct msg *msg_build_warmup(struct msg *req, struct msg *rsp);
 
 struct msg *req_get(struct conn *conn);
 void req_put(struct msg *msg);

@@ -393,10 +393,6 @@ req_forward_error(struct context *ctx, struct conn *conn, struct msg *msg)
 static bool
 req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
 {
-    struct server_pool *pool;
-    
-    pool = conn->owner;
-
     ASSERT(conn->client && !conn->proxy);
 
     if (msg_empty(msg)) {
@@ -420,23 +416,6 @@ req_filter(struct context *ctx, struct conn *conn, struct msg *msg)
         req_put(msg);
         return true;
     }
-
-    if (server_pool_ratelimit(pool)) {
-        if (!msg->noreply) {
-            conn->enqueue_outq(ctx, conn, msg);
-        }
-        
-        errno = NC_ETOOMANYREQUESTS;
-        req_forward_error(ctx, conn, msg);
-        return true;
-    }
-
-    if (msg->pre_req_forward != NULL && 
-        msg->pre_req_forward(ctx, conn, msg) != NC_OK) {
-        req_forward_error(ctx, conn, msg);
-        return true;
-    }
-    
     return false;
 }
 
@@ -486,7 +465,7 @@ req_enqueue(struct context *ctx, struct conn *s_conn, struct msg *msg)
     return NC_OK;
 }
 
-static void
+static rstatus_t
 req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
     rstatus_t status;
@@ -495,11 +474,6 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     struct string key = null_string;
 
     ASSERT(c_conn->client && !c_conn->proxy);
-
-    /* enqueue message (request) into client outq, if response is expected */
-    if (!msg->noreply) {
-        c_conn->enqueue_outq(ctx, c_conn, msg);
-    }
 
     pool = c_conn->owner;
     
@@ -519,34 +493,33 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 
     s_conn = msg->routing(ctx, pool, msg, &key);
     if (s_conn == NULL) {
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        return NC_ERROR;
     }
 
     ASSERT(!s_conn->client && !s_conn->proxy);
 
     if (msg->post_routing != NULL &&
         msg->post_routing(ctx, s_conn, msg) != NC_OK) {
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        return NC_ERROR;
     }
 
     /* enqueue the message (request) into server inq */
     status = req_enqueue(ctx, s_conn, msg);
     if (status != NC_OK) {
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        return NC_ERROR;
     }
 
     req_forward_stats(ctx, s_conn->owner, msg);
     log_debug(LOG_VERB, "forward from c %d to s %d req %"PRIu64" len %"PRIu32
               " type %d with key '%.*s'", c_conn->sd, s_conn->sd, msg->id,
               msg->mlen, msg->type, key.len, key.data);
+    return NC_OK;
 }
 
-static void
+static rstatus_t
 req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
 {
+    rstatus_t status;
     struct server_pool *pool, *downstream;
     struct string namespace = null_string;
 
@@ -557,22 +530,15 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     req_hash_key(msg->key_start, msg->key_end, &pool->hash_tag, &namespace);
     if (string_empty(&namespace)) {
         log_debug(LOG_VERB, "no downstream namespace");
-
-        if (!msg->noreply) {
-            c_conn->enqueue_outq(ctx, c_conn, msg);
-        }
-
         errno = EINVAL;
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        return NC_ERROR;
     }
 
     downstream = assoc_find(pool->downstreams, 
                             (const char *)namespace.data, namespace.len);
     if (downstream == NULL) {
         log_warn("no downstream for namespace \"%.*s\"", namespace.len, namespace.data);
-        req_forward_error(ctx, c_conn, msg);
-        return;
+        return NC_ERROR;
     }
     log_debug(LOG_VERB, "forward to downstream: '%.*s' -> '%.*s'", 
               downstream->namespace.len, downstream->namespace.data,
@@ -581,13 +547,44 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
     c_conn->unref(c_conn);
     c_conn->ref(c_conn, downstream);
     
-    req_forward(ctx, c_conn, msg);
+    status = req_forward(ctx, c_conn, msg);
+    if (status != NC_OK) {
+        return NC_ERROR;
+    }
+
+    return NC_OK;
+}
+
+static rstatus_t
+req_pre_forward(struct context *ctx, struct conn *conn, struct msg *msg)
+{
+    struct server_pool *pool;
+
+    pool = conn->owner;
+
+    /* enqueue message (request) into client outq, if response is expected */
+    if (!msg->noreply) {
+        conn->enqueue_outq(ctx, conn, msg);
+    }
+
+    if (server_pool_ratelimit(pool)) {
+        errno = NC_ETOOMANYREQUESTS;
+        return NC_ERROR;
+    }
+
+    if (msg->pre_req_forward != NULL &&
+        msg->pre_req_forward(ctx, conn, msg) != NC_OK) {
+        return NC_ERROR;
+    }
+
+    return NC_OK;
 }
 
 void
 req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
               struct msg *nmsg)
 {
+    rstatus_t status;
     struct server_pool *pool;
 
     ASSERT(conn->client && !conn->proxy);
@@ -604,11 +601,20 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
     if (req_filter(ctx, conn, msg)) {
         return;
     }
-    
+
+    status = req_pre_forward(ctx, conn, msg);
+    if (status != NC_OK) {
+        req_forward_error(ctx, conn, msg);
+        return;
+    }
+
     if (pool->virtual) {
-        req_virtual_forward(ctx, conn, msg);
+        status = req_virtual_forward(ctx, conn, msg);
     } else {
-        req_forward(ctx, conn, msg);
+        status = req_forward(ctx, conn, msg);
+    }
+    if (status != NC_OK) {
+        req_forward_error(ctx, conn, msg);
     }
 }
 

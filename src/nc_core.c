@@ -241,13 +241,6 @@ core_error(struct context *ctx, struct conn *conn)
 static void
 core_timeout(struct context *ctx)
 {
-    rstatus_t status;
-
-    status = server_pool_probe(ctx);
-    if (status != NC_OK) {
-        log_debug(LOG_WARN, "failed to probe servers");
-    }
-
     for (;;) {
         struct msg *msg;
         struct conn *conn;
@@ -256,7 +249,7 @@ core_timeout(struct context *ctx)
         msg = msg_tmo_min();
         if (msg == NULL) {
             ctx->timeout = ctx->max_timeout;
-            break;
+            return;
         }
 
         /* skip over req that are in-error or done */
@@ -278,7 +271,7 @@ core_timeout(struct context *ctx)
         if (now < then) {
             int delta = (int)(then - now);
             ctx->timeout = MIN(delta, ctx->max_timeout);
-            break;
+            return;
         }
 
         log_debug(LOG_INFO, "req %"PRIu64" on s %d timedout", msg->id, conn->sd);
@@ -335,7 +328,11 @@ core_core(void *arg, uint32_t events)
 static void
 core_tick(struct context *ctx)
 {
-    server_pool_update_ratelimit(ctx);
+    server_pool_update_quota(ctx);
+
+    server_pool_probe(ctx);
+    
+    core_timeout(ctx);
 }
 
 rstatus_t
@@ -360,8 +357,6 @@ core_loop(struct context *ctx)
     if (nsd < 0) {
         return nsd;
     }
-
-    core_timeout(ctx);
 
     stats_swap(ctx->stats);
 

@@ -1203,22 +1203,18 @@ server_pool_each_probe(void *elem, void *data)
 }
 
 
-rstatus_t
+void
 server_pool_probe(struct context *ctx)
 {
-    rstatus_t status;
     struct array *pools;
 
     pools = &ctx->pool;
 
-    status = array_each(pools, server_pool_each_probe, NULL);
-
-    /* always returns NC_OK */
-    return NC_OK;
+    array_each(pools, server_pool_each_probe, NULL);
 }
 
 static rstatus_t
-server_pool_each_update_ratelimit(void *elem, void *data)
+server_pool_each_update_quota(void *elem, void *data)
 {
     struct server_pool *pool = elem;
     float delta;
@@ -1241,13 +1237,13 @@ server_pool_each_update_ratelimit(void *elem, void *data)
 }
 
 void
-server_pool_update_ratelimit(struct context *ctx)
+server_pool_update_quota(struct context *ctx)
 {
     struct array *pools;
 
     pools = &ctx->pool;
 
-    array_each(pools, server_pool_each_update_ratelimit, NULL);
+    array_each(pools, server_pool_each_update_quota, NULL);
 }
 
 bool
