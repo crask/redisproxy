@@ -65,3 +65,6 @@ Makefile
 Makefile.in
 
 cscope.*
+
+*.pyc
+env.sh

@@ -1,0 +1,85 @@
+alpha:
+  listen: 127.0.0.1:22121
+  hash: fnv1a_64
+  distribution: range
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  auto_probe_hosts: true
+  gutter: alpha_gutter
+  namespace: alpha
+  auto_warmup: true
+  peer: beta
+  rate: 100000
+  burst: 200000
+  message_queue: mcq
+  servers:
+   - 127.0.0.1:11211:1 server1^0
+  
+alpha_gutter:
+  listen: 127.0.0.1:22122
+  hash: fnv1a_64
+  distribution: ketama
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:11212:1 server1
+
+beta:
+  listen: 127.0.0.1:22123
+  hash: fnv1a_64
+  distribution: range
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  auto_probe_hosts: true
+  gutter: beta_gutter
+  namespace: beta
+  auto_warmup: true
+  peer: alpha
+  rate: 100000
+  burst: 200000
+  servers:
+   - 127.0.0.1:11213:1 server1^0
+
+
+beta_gutter:
+  listen: 127.0.0.1:22124
+  hash: fnv1a_64
+  distribution: ketama
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:11214:1 server1
+  
+  
+gamma:
+  listen: 127.0.0.1:22125
+  virtual: true
+  hash_tag: "{}"
+  downstreams:
+    - alpha
+    - beta
+
+
+mcq:
+  listen: 127.0.0.1:22126
+  distribution: random
+  preconnect: true
+  timeout: 5
+  redis: true
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:11215:1 server1
