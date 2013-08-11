@@ -1836,10 +1836,15 @@ memcache_post_routing(struct context *ctx, struct conn *s_conn, struct msg *msg)
 {
     rstatus_t status;
     struct msg *clone;
+    struct conn *origin;
 
-    if (msg->origin == NULL) {
+    origin = msg->origin;
+
+    if (origin == NULL) {
         return NC_OK;
     }
+
+    ASSERT(memcache_cold(origin));
 
     clone = msg_clone(msg);
     if (clone == NULL) {
@@ -1849,7 +1854,7 @@ memcache_post_routing(struct context *ctx, struct conn *s_conn, struct msg *msg)
     clone->owner = NULL;        /* Special purpose request */
     clone->swallow = 1;         /* Discard the response */
     
-    status = req_enqueue(ctx, s_conn, clone);
+    status = req_enqueue(ctx, origin, clone);
     if (status != NC_OK) {
         req_put(clone);
     }
