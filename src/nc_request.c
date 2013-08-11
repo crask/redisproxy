@@ -562,11 +562,6 @@ req_pre_forward(struct context *ctx, struct conn *conn, struct msg *msg)
 
     pool = conn->owner;
 
-    /* enqueue message (request) into client outq, if response is expected */
-    if (!msg->noreply) {
-        conn->enqueue_outq(ctx, conn, msg);
-    }
-
     if (server_pool_ratelimit(pool)) {
         errno = NC_ETOOMANYREQUESTS;
         return NC_ERROR;
@@ -600,6 +595,11 @@ req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg,
 
     if (req_filter(ctx, conn, msg)) {
         return;
+    }
+
+    /* enqueue message (request) into client outq, if response is expected */
+    if (!msg->noreply) {
+        conn->enqueue_outq(ctx, conn, msg);
     }
 
     status = req_pre_forward(ctx, conn, msg);
