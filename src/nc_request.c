@@ -40,6 +40,10 @@ req_put(struct msg *msg)
 
     ASSERT(msg->request);
 
+    if (msg->pre_req_put != NULL) {
+        msg->pre_req_put(msg);
+    }
+
     pmsg = msg->peer;
     if (pmsg != NULL) {
         ASSERT(!pmsg->request && pmsg->peer == msg);
@@ -71,6 +75,10 @@ req_done(struct conn *conn, struct msg *msg)
     ASSERT(msg->request);
 
     if (!msg->done) {
+        return false;
+    }
+    
+    if (msg->waiting) {
         return false;
     }
 

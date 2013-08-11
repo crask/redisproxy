@@ -445,6 +445,10 @@ server_close(struct context *ctx, struct conn *conn)
          * 1. request is tagged as noreply or,
          * 2. client has already closed its connection
          */
+        msg->done = 1;
+        msg->error = 1;
+        msg->err = conn->err;
+
         if (msg->swallow || msg->noreply || msg->owner == NULL) {
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
@@ -452,10 +456,6 @@ server_close(struct context *ctx, struct conn *conn)
         } else {
             c_conn = msg->owner;
             ASSERT(c_conn->client && !c_conn->proxy);
-
-            msg->done = 1;
-            msg->error = 1;
-            msg->err = conn->err;
 
             if (req_done(c_conn, TAILQ_FIRST(&c_conn->omsg_q))) {
                 event_add_out(ctx->evb, msg->owner);
@@ -475,6 +475,10 @@ server_close(struct context *ctx, struct conn *conn)
         /* dequeue the message (request) from server outq */
         conn->dequeue_outq(ctx, conn, msg);
 
+        msg->done = 1;
+        msg->error = 1;
+        msg->err = conn->err;
+
         if (msg->swallow || msg->owner == NULL) {
             log_debug(LOG_INFO, "close s %d swallow req %"PRIu64" len %"PRIu32
                       " type %d", conn->sd, msg->id, msg->mlen, msg->type);
@@ -482,10 +486,6 @@ server_close(struct context *ctx, struct conn *conn)
         } else {
             c_conn = msg->owner;
             ASSERT(c_conn->client && !c_conn->proxy);
-
-            msg->done = 1;
-            msg->error = 1;
-            msg->err = conn->err;
 
             if (req_done(c_conn, TAILQ_FIRST(&c_conn->omsg_q))) {
                 event_add_out(ctx->evb, msg->owner);

@@ -163,7 +163,15 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
     ASSERT(pmsg->peer == NULL);
     ASSERT(pmsg->request && !pmsg->done);
 
+    /* establish msg <-> pmsg (response <-> request) link */
+    msg->peer = pmsg;
+    pmsg->peer = msg;
+
     if (pmsg->swallow) {
+        if (pmsg->pre_swallow != NULL) {
+            pmsg->pre_swallow(ctx, conn, msg);
+        }
+
         conn->dequeue_outq(ctx, conn, pmsg);
         pmsg->done = 1;
 
@@ -171,7 +179,6 @@ rsp_filter(struct context *ctx, struct conn *conn, struct msg *msg)
                   "%"PRIu64" on s %d", msg->id, msg->mlen, pmsg->id,
                   conn->sd);
 
-        rsp_put(msg);
         req_put(pmsg);
         return true;
     }
@@ -200,17 +207,14 @@ rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *msg)
     /* response from server implies that server is ok and heartbeating */
     server_ok(ctx, s_conn);
 
-    /* dequeue peer message (request) from server */
-    pmsg = TAILQ_FIRST(&s_conn->omsg_q);
-    ASSERT(pmsg != NULL && pmsg->peer == NULL);
-    ASSERT(pmsg->request && !pmsg->done);
+    /*
+     * msg <-> pmsg (response <-> request) link has been established
+     * in rsp_filter
+     */
+    pmsg = msg->peer;
 
     s_conn->dequeue_outq(ctx, s_conn, pmsg);
     pmsg->done = 1;
-
-    /* establish msg <-> pmsg (response <-> request) link */
-    pmsg->peer = msg;
-    msg->peer = pmsg;
 
     msg->pre_coalesce(msg);
 

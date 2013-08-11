@@ -23,8 +23,8 @@
 typedef void (*msg_parse_t)(struct msg *);
 typedef rstatus_t (*msg_post_splitcopy_t)(struct msg *);
 typedef void (*msg_coalesce_t)(struct msg *r);
-
 typedef rstatus_t (*msg_build_probe_t)(struct msg *);
+typedef void (*msg_handle_t)(struct msg *);
 
 
 typedef struct conn *(*msg_routing_t)(struct context *, struct server_pool *, struct msg *, struct string *);
@@ -196,7 +196,9 @@ struct msg {
     msg_forward_t        pre_req_forward; /* message pre-forward */
     msg_routing_t        routing;         /* message routing */
     msg_forward_t        post_routing;    /* message post-routing */
-    msg_forward_t        pre_rsp_forward;/* message post-forward */
+    msg_forward_t        pre_rsp_forward; /* message post-forward */
+    msg_forward_t        pre_swallow;     /* message pre-swallow */
+    msg_handle_t         pre_req_put;    /* message pre messag */
 
     msg_build_probe_t    build_probe;     /* message build probe */
     
@@ -230,6 +232,9 @@ struct msg {
     struct msg           *frag_owner;     /* owner of fragment message */
     uint32_t             nfrag;           /* # fragment */
     uint64_t             frag_id;         /* id of fragmented message */
+
+    struct msg           *notify_owner;   /* owner of notification message */
+    unsigned             waiting:1;       /* waitting for notify response? */    
 
     err_t                err;             /* errno on error? */
     unsigned             error:1;         /* error? */

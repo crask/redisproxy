@@ -270,6 +270,11 @@ done:
     msg->swallow = 0;
     msg->redis = 0;
 
+    msg->notify_owner = NULL;
+    msg->waiting = 0;
+    msg->pre_swallow = NULL;
+    msg->pre_req_put = NULL;
+
     return msg;
 }
 

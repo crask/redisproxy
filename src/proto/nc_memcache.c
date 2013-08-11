@@ -1736,12 +1736,66 @@ memcache_build_notify(struct msg *req)
     log_debug(LOG_VERB, "notify: %.*s", n, mbuf->last);
     mbuf->last += n;
     ASSERT(mbuf->last <= mbuf->end);
-    
-    msg->swallow = 1;
 
     return msg;
 }
 
+static rstatus_t
+memcache_pre_swallow(struct context *ctx, struct conn *s_conn, struct msg *rsp)
+{
+    rstatus_t status;
+    struct msg *req, *owner;
+    struct conn *conn;
+    
+    req = rsp->peer;
+    
+    ASSERT(req != NULL);
+
+    owner = req->notify_owner;         /* notification owner */
+
+    ASSERT(rsp->redis);
+    ASSERT(owner && owner->waiting);
+
+    conn = owner->owner;
+
+    /* Clear the waiting status */
+    owner->waiting = 0;
+
+    if (req_done(conn, TAILQ_FIRST(&conn->omsg_q))) {
+        status = event_add_out(ctx->evb, conn);
+        if (status != NC_OK) {
+            conn->err = errno;
+        }
+    }
+
+    return NC_OK;
+}
+
+static void
+memcache_pre_req_put(struct msg *msg)
+{
+    struct msg *owner;
+    struct conn *conn;
+    struct server_pool *pool;
+    /* Only handle the notify request */
+    ASSERT(msg->owner == NULL && msg->notify_owner != NULL);
+
+    if (!msg->error) {
+        return;
+    }
+
+    owner = msg->notify_owner;
+    conn = owner->owner;
+    pool = conn->owner;
+
+    owner->waiting = 0;
+    owner->error = msg->error;
+    owner->err = msg->err;
+
+    if (req_done(conn, TAILQ_FIRST(&conn->omsg_q))) {
+        event_add_out(pool->ctx->evb, conn);
+    }
+}
 
 rstatus_t
 memcache_pre_req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
@@ -1767,7 +1821,7 @@ memcache_pre_req_forward(struct context *ctx, struct conn *c_conn, struct msg *m
     conn = server_pool_conn(ctx, mq, msg->key_start,
                             (uint32_t)(msg->key_end - msg->key_start));
     if (conn == NULL) {
-        log_error("failed to fetch connection for \"%.*s\"", 
+        log_error("failed to fetch mq connection for \"%.*s\"", 
                   pool->name.len, pool->name.data);
         return NC_ERROR;
     }
@@ -1778,6 +1832,16 @@ memcache_pre_req_forward(struct context *ctx, struct conn *c_conn, struct msg *m
                   pool->name.len, pool->name.data);
         return NC_ERROR;
     }
+
+    /* The original message is waiting for notification response */
+    msg->waiting = 1;
+
+    /* Handle the notification response and swallow it */
+    n_msg->owner = NULL;        /* Special message */
+    n_msg->notify_owner = msg;
+    n_msg->pre_swallow = memcache_pre_swallow;
+    n_msg->pre_req_put = memcache_pre_req_put;
+    n_msg->swallow = 1;
 
     status = req_enqueue(ctx, conn, n_msg);
     if (status != NC_OK) {
@@ -1874,17 +1938,17 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
 
     /* Handle probe response */
     if (c_conn == NULL) {
-        log_debug(LOG_VERB, "handle probe");
         memcache_handle_probe(pmsg, msg);
         stats_server_set(ctx, s_conn->owner, cold, 
                          memcache_cold(s_conn) ? 1 : 0);
         req_put(pmsg);
         return NC_ERROR;
     }
-
+    
     /* If the request and response belong to different pools, either
      * we have a connection to be warmup up, or the response came from a
-     * gutter
+     * gutter.
+     * If the message's origin is NULL, then it must be from a gutter.
      */
     if (c_conn->owner == s_conn->owner || pmsg->origin == NULL) {
         return NC_OK;
@@ -1898,14 +1962,13 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
     if (msg == NULL) {
         return NC_OK;
     }
-    
-    msg->noreply = 1;
+
     msg->swallow = 1;
 
     status = req_enqueue(ctx, pmsg->origin, msg);
     if (status != NC_OK) {
         req_put(msg);
     }
-    
+
     return NC_OK;
 }
