@@ -913,7 +913,7 @@ server_pool_each_set_downstreams(void *elem, void *data)
     rstatus_t status;
     struct server_pool *sp, *pool, *ds; /* downstream */
     struct array *pool_array;
-    struct string *ds_name;
+    struct downstream_pool *dp;
     uint32_t dsi, pi;            /* server_index and pool_index */
     
     sp = elem;
@@ -924,24 +924,25 @@ server_pool_each_set_downstreams(void *elem, void *data)
         return NC_OK;
     }
     
-    ASSERT(array_n(&sp->downstream_names) > 0);
+    ASSERT(array_n(&sp->downstreams) > 0);
     
-    for (dsi = 0; dsi < array_n(&sp->downstream_names); dsi++) {
-        ds_name = array_get(&sp->downstream_names, dsi);
+    for (dsi = 0; dsi < array_n(&sp->downstreams); dsi++) {
+        dp = array_get(&sp->downstreams, dsi);
         ds = NULL;
         
         /* find the coresponding server pool */
         for (pi = 0; pi < array_n(pool_array); pi++) {
             pool = array_get(pool_array, pi);
             if (!pool->virtual && 
-                string_compare(&pool->name, ds_name) == 0) {
+                string_compare(&pool->name, &dp->name) == 0) {
                 ds = pool;
             }
         }
 
         if (ds) {
-            if (string_empty(&ds->namespace)) {
-                log_error("server: downstream '%.*s' has no namespace",
+            if (string_empty(&ds->namespace) || 
+                string_compare(&ds->namespace, &dp->ns)) {
+                log_error("server: namespace not match for '%.*s'", 
                           ds->name.len, ds->name.data);
                 return NC_ERROR;
             } 
@@ -953,7 +954,7 @@ server_pool_each_set_downstreams(void *elem, void *data)
                 return NC_ERROR;
             }
 
-            status = assoc_insert(sp->downstreams, 
+            status = assoc_insert(sp->downstream_table, 
                                   (const char *)ds->namespace.data, 
                                   ds->namespace.len, 
                                   ds);
@@ -1104,11 +1105,11 @@ server_pool_deinit(struct array *server_pool)
             sp->nlive_server = 0;
         }
         
-        array_rewind(&sp->downstream_names);
-        array_deinit(&sp->downstream_names);
+        array_rewind(&sp->downstreams);
+        array_deinit(&sp->downstreams);
 
-        if (sp->downstreams != NULL) {
-            assoc_destroy_table(sp->downstreams);
+        if (sp->downstream_table != NULL) {
+            assoc_destroy_table(sp->downstream_table);
         }
 
         server_deinit(&sp->server);

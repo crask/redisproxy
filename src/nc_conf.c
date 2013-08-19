@@ -119,7 +119,7 @@ static struct command conf_commands[] = {
       offsetof(struct conf_pool, virtual) },
 
     { string("downstreams"),
-      conf_add_string,
+      conf_add_downstream,
       offsetof(struct conf_pool, downstreams) },
 
     { string("namespace"),
@@ -166,6 +166,27 @@ conf_server_deinit(struct conf_server *cs)
     log_debug(LOG_VVERB, "deinit conf server %p", cs);
 }
 
+static void
+conf_downstream_init(struct conf_downstream *cd)
+{
+    string_init(&cd->ns);
+    string_init(&cd->name);
+    
+    cd->valid = 0;
+    
+    log_debug(LOG_VVERB, "init conf downstream %p", cd);
+}
+
+static void 
+conf_downstream_deinit(struct conf_downstream *cd)
+{
+    string_deinit(&cd->ns);
+    string_deinit(&cd->name);
+    
+    cd->valid = 0;
+
+    log_debug(LOG_VVERB, "deinit conf downstream %p", cd);
+}
 
 rstatus_t
 conf_server_each_transform(void *elem, void *data)
@@ -268,7 +289,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     }
 
     status = array_init(&cp->downstreams, CONF_DEFAULT_DOWNSTREAMS,
-                        sizeof(struct string));
+                        sizeof(struct conf_downstream));
     if (status != NC_OK) {
         array_deinit(&cp->server);
         string_deinit(&cp->name);
@@ -299,7 +320,7 @@ conf_pool_deinit(struct conf_pool *cp)
     string_deinit(&cp->message_queue);
 
     while (array_n(&cp->downstreams) != 0) {
-        string_deinit(array_pop(&cp->downstreams));
+        conf_downstream_deinit(array_pop(&cp->downstreams));
     }
     array_deinit(&cp->downstreams);
 
@@ -313,7 +334,8 @@ conf_pool_each_transform(void *elem, void *data)
     struct conf_pool *cp = elem;
     struct array *server_pool = data;
     struct server_pool *sp;
-    struct string *name;
+    struct downstream_pool *dp;
+    struct conf_downstream *cd;
     uint32_t i;
 
     ASSERT(cp->valid);
@@ -371,8 +393,8 @@ conf_pool_each_transform(void *elem, void *data)
     sp->peer_name = cp->peer;
     sp->peer = NULL;
 
-    array_null(&sp->downstream_names);
-    sp->downstreams = NULL;
+    array_null(&sp->downstreams);
+    sp->downstream_table = NULL;
 
     sp->virtual = cp->virtual ? 1 : 0;
     sp->namespace = cp->namespace;
@@ -385,21 +407,30 @@ conf_pool_each_transform(void *elem, void *data)
     sp->message_queue = NULL;
     
     if (sp->virtual) {
-        status = array_init(&sp->downstream_names, 
-                            array_n(&cp->downstreams), sizeof(struct string));
+        status = array_init(&sp->downstreams, 
+                            array_n(&cp->downstreams), 
+                            sizeof(struct downstream_pool));
         if (status != NC_OK) {
             log_error("conf: failed to init downsteams");
             return status;
         }
 
         for (i = 0; i < array_n(&cp->downstreams); i++) {
-            name = array_push(&sp->downstream_names);
-            *name = *(struct string *)array_get(&cp->downstreams, i);
+            dp = array_push(&sp->downstreams);
+            if (dp == NULL) {
+                return NC_ENOMEM;
+            }
+            cd = array_get(&cp->downstreams, i);
+            if (cd == NULL) {
+                return NC_ERROR;
+            }
+            dp->ns = cd->ns;
+            dp->name = cd->name;
         }
 
-        sp->downstreams = assoc_create_table(sp->key_hash, 
-                                             array_n(&sp->downstream_names));
-        if (sp->downstreams == NULL) {
+        sp->downstream_table = assoc_create_table(sp->key_hash, 
+                                                  array_n(&sp->downstreams));
+        if (sp->downstream_table == NULL) {
             log_error("conf: failed to init downstream table");
             return NC_ENOMEM;
         }
@@ -423,7 +454,7 @@ conf_dump(struct conf *cf)
     uint32_t i, j, npool, nserver, ndownstream;
     struct conf_pool *cp;
     struct conf_server *s;
-    struct string *ds;
+    struct conf_downstream *ds;
 
     npool = array_n(&cf->pool);
     if (npool == 0) {
@@ -481,7 +512,8 @@ conf_dump(struct conf *cf)
         
             for ( j = 0; j < ndownstream; j++) {
                 ds = array_get(&cp->downstreams, j);
-                log_debug(LOG_VVERB, "    %.*s", ds->len, ds->data);
+                log_debug(LOG_VVERB, "    %.*s %.*s", ds->ns.len, ds->ns.data,
+                          ds->name.len, ds->name.data);
 
             }
         }
@@ -1792,6 +1824,60 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     string_deinit(&address);
     field->valid = 1;
 
+    return CONF_OK;
+}
+
+char *
+conf_add_downstream(struct conf *cf, struct command *cmd, void *conf)
+{
+    rstatus_t status;
+    struct array *a;
+    struct string *value;
+    struct conf_downstream *field;
+    uint8_t *p, *q, *start;
+    uint8_t *ns, *name;
+    uint32_t nslen, namelen;
+    
+    char delim = ' ';
+    
+    p = conf;
+    a = (struct array *)(p + cmd->offset);
+    
+    field = array_push(a);
+    if (field == NULL) {
+        return CONF_ERROR;
+    }
+    
+    conf_downstream_init(field);
+    
+    value = array_top(&cf->arg);
+    
+    p = value->data + value->len;
+    start = value->data;
+    
+    q = nc_strchr(start, p, delim);
+    if (q == NULL) {
+        array_pop(a);
+        return "has an invalid \"namespace pool_name\" format string";
+    }
+
+    ns = start;
+    nslen = (uint32_t)(q - start);
+    status = string_copy(&field->ns, ns, nslen);
+    if (status != NC_OK) {
+        array_pop(a);
+        return CONF_ERROR;
+    }
+
+    name = q + 1;
+    namelen = (uint32_t)(p - name);
+    status = string_copy(&field->name, name, namelen);
+    if (status != NC_OK) {
+        array_pop(a);
+        return CONF_ERROR;
+    }
+    
+    field->valid = 1;
     return CONF_OK;
 }
 

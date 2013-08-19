@@ -542,7 +542,7 @@ req_virtual_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         return NC_ERROR;
     }
 
-    downstream = assoc_find(pool->downstreams, 
+    downstream = assoc_find(pool->downstream_table, 
                             (const char *)namespace.data, namespace.len);
     if (downstream == NULL) {
         log_warn("no downstream for namespace \"%.*s\"", namespace.len, namespace.data);

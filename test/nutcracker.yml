@@ -9,7 +9,7 @@ alpha:
   server_retry_timeout: 2000
   auto_probe_hosts: true
   gutter: alpha_gutter
-  namespace: alpha
+  namespace: alphans
   auto_warmup: true
   peer: beta
   rate: 100000
@@ -41,7 +41,7 @@ beta:
   server_retry_timeout: 2000
   auto_probe_hosts: true
   gutter: beta_gutter
-  namespace: beta
+  namespace: betans
   auto_warmup: true
   peer: alpha
   rate: 100000
@@ -68,8 +68,8 @@ gamma:
   virtual: true
   hash_tag: "{}"
   downstreams:
-    - alpha
-    - beta
+    - alphans alpha
+    - betans beta
 
 
 mcq:

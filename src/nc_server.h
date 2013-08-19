@@ -93,6 +93,11 @@ struct server {
     void *stats;               /* stats data */
 };
 
+struct downstream_pool {
+    struct string    ns;       /* namespace */
+    struct string    name;     /* pool name */                               
+};
+
 struct server_pool {
     uint32_t           idx;                  /* pool index */
     struct context     *ctx;                 /* owner context */
@@ -138,8 +143,8 @@ struct server_pool {
     struct string      peer_name;            /* peer pool name */
     struct server_pool *peer;                /* peer pool */
 
-    struct array       downstream_names;     /* downstream names */
-    struct hash_table  *downstreams;         /* downstreams */
+    struct array       downstreams;          /* downstreams*/
+    struct hash_table  *downstream_table;    /* downstream table */
 
     unsigned           virtual:1;            /* virtual server */        
     struct string      namespace;            /* namespace */

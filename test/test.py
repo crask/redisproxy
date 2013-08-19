@@ -172,13 +172,13 @@ class TestBasic(unittest.TestCase):
         key = id_generator()
         val = id_generator()
     
-        self.gamma.set('{alpha}' + key, val)
-        self.gamma.set('{beta}' + key, val)
+        self.gamma.set('{alphans}' + key, val)
+        self.gamma.set('{betans}' + key, val)
 
-        mcval = self.alpha.get('{alpha}' + key)
+        mcval = self.alpha.get('{alphans}' + key)
         self.assertEqual(mcval, val)
 
-        mcval = self.beta.get('{beta}' + key)
+        mcval = self.beta.get('{betans}' + key)
         self.assertEqual(mcval, val)
     
     def test_notify(self):
