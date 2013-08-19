@@ -277,6 +277,69 @@ class Client(object):
             response = [received.get(key) for key in keys]
         return response
 
+    def getex(self, key):
+        '''
+        Gets a single value from the server; returns None if there is no value
+
+        Raises ``ValidationException``, ``ClientException``, and socket errors
+        '''
+        return self.multi_getex([key])[0]
+
+    def multi_getex(self, keys):
+        '''
+        Takes a list of keys and returns a list of values
+
+        Raises ``ValidationException``, ``ClientException``, and socket errors
+        '''
+        if len(keys) == 0:
+            return []
+
+        # req  - getex <key> [<key> ...]\r\n
+        # resp - VALUE <key> <flags> <bytes> <cas unique> <expire time>\r\n
+        #        <data block>\r\n (if exists)
+        #        [...]
+        #        END\r\n
+        keys = [self._validate_key(key) for key in keys]
+        if len(set(keys)) != len(keys):
+            raise ClientException('duplicate keys passed to multi_get')
+        command = 'getex %s\r\n' % ' '.join(keys)
+        received = {}
+        resp = self._send_command(command)
+        error = None
+
+        while resp != 'END\r\n':
+            terms = resp.split()
+            if len(terms) == 6 and terms[0] == 'VALUE': # exists
+                key = terms[1]
+                flags = int(terms[2])
+                length = int(terms[3])
+                if flags != 0:
+                    error = ClientException('received non zero flags')
+                val = self._read(length+2)[:-2]
+                if key in received:
+                    error = ClientException('duplicate results from server')
+                received[key] = val
+            else:
+                raise ClientException('get failed', resp)
+            resp = self._read()
+
+        if error is not None:
+            # this can happen if a memcached instance contains items set by a previous client
+            # leads to subtle bugs, so fail fast
+            raise error
+
+        if len(received) > len(keys):
+            raise ClientException('received too many responses')
+        # memcache client is used by other servers besides memcached.
+        # In the case of kestrel, responses coming back to not necessarily
+        # match the requests going out. Thus we just ignore the key name
+        # if there is only one key and return what we received.
+        if len(keys) == 1 and len(received) == 1:
+            response = received.values()
+        else:
+            response = [received.get(key) for key in keys]
+        return response
+
     def set(self, key, val, exptime=0):
         '''
         Sets a key to a value on the server with an optional exptime (0 means don't auto-expire)

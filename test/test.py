@@ -149,11 +149,17 @@ class TestBasic(unittest.TestCase):
         
         key = id_generator()
         val = id_generator()
-        self.beta.set(key, val)
-        mcval = self.alpha.get(key)
+
+        expire_time = 5
+        self.beta.set(key, val, expire_time)
+        mcval = self.alpha.getex(key)
         self.assertEqual(mcval, val)
-        mcval = self.alpha_server.get(key)
+        mcval = self.alpha_server.getex(key)
         self.assertEqual(mcval, val)
+        
+        time.sleep(expire_time)
+        self.assertEqual(self.alpha.getex(key), None)
+        
         self.beta.delete(key)
             
         self.alpha_server._socket.sendall('cold 0\r\n')
@@ -162,7 +168,7 @@ class TestBasic(unittest.TestCase):
 
         time.sleep(probe_interval)
         
-        mcval = self.alpha.get(key)
+        mcval = self.alpha.getex(key)
         self.assertEqual(mcval, val)
     
     def test_failover(self):

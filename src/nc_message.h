@@ -42,6 +42,7 @@ typedef enum msg_type {
     MSG_UNKNOWN,
     MSG_REQ_MC_GET,                       /* memcache retrieval requests */
     MSG_REQ_MC_GETS,
+    MSG_REQ_MC_GETEX,                     /* extended */
     MSG_REQ_MC_DELETE,                    /* memcache delete request */
     MSG_REQ_MC_CAS,                       /* memcache cas request and storage request */
     MSG_REQ_MC_SET,                       /* memcache storage request */
@@ -213,8 +214,7 @@ struct msg {
     uint8_t              *flags_start;    /* flags start (memcache) */
     uint8_t              *flags_end;      /* flags end (memcache) */
 
-    uint8_t              *expire_start;   /* expire start */
-    uint8_t              *expire_end;     /* expire end */
+    uint32_t             expire;           /* expire time */
 
     uint32_t             vlen;            /* value length (memcache) */
     uint8_t              *end;            /* end marker (memcache) */

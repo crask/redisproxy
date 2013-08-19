@@ -199,14 +199,14 @@ memcache_retrieval(struct msg *r)
 }
 
 /* 
- * Return true, if the memcache command is a get command, otherwise 
+ * Return true, if the memcache command is a getex command, otherwise 
  * return false
  */
 static bool
-memcache_get(struct msg *r)
+memcache_getex(struct msg *r)
 {
     switch (r->type) {
-    case MSG_REQ_MC_GET:
+    case MSG_REQ_MC_GETEX:
         return true;
     default:
         break;
@@ -286,6 +286,8 @@ memcache_parse_req(struct msg *r)
         SW_VLEN,
         SW_SPACES_BEFORE_CAS,
         SW_CAS,
+        SW_SPACES_BEFORE_EXPIRE,
+        SW_EXPIRE,
         SW_RUNTO_VAL,
         SW_VAL,
         SW_SPACES_BEFORE_NUM,
@@ -386,7 +388,13 @@ memcache_parse_req(struct msg *r)
                     }
 
                     break;
+                case 5:
+                    if (str5cmp(m, 'g', 'e', 't', 'e', 'x')) {
+                        r->type = MSG_REQ_MC_GETEX;
+                        break;
+                    }
 
+                    break;
                 case 6:
                     if (str6cmp(m, 'a', 'p', 'p', 'e', 'n', 'd')) {
                         r->type = MSG_REQ_MC_APPEND;
@@ -417,6 +425,7 @@ memcache_parse_req(struct msg *r)
                 switch (r->type) {
                 case MSG_REQ_MC_GET:
                 case MSG_REQ_MC_GETS:
+                case MSG_REQ_MC_GETEX:
                 case MSG_REQ_MC_DELETE:
                 case MSG_REQ_MC_CAS:
                 case MSG_REQ_MC_SET:
@@ -618,13 +627,38 @@ memcache_parse_req(struct msg *r)
                 /* cas_end <- p - 1 */
                 p = p - 1; /* go back by 1 byte */
                 r->token = NULL;
-                state = SW_RUNTO_CRLF;
+                if (ch == CR) {
+                    state = SW_RUNTO_CRLF;
+                } else {
+                    state = SW_SPACES_BEFORE_EXPIRE;
+                }
             } else {
                 goto error;
             }
 
             break;
-
+        case SW_SPACES_BEFORE_EXPIRE:
+            if (ch != ' ') {
+                if (isdigit(ch)) {
+                    r->token = p;
+                    r->expire = (uint32_t)(ch - '0');
+                    state = SW_EXPIRE;
+                } else if (ch == CR) {
+                    p = p - 1;
+                    state = SW_RUNTO_CRLF;
+                }
+            }
+            
+            break;
+        case SW_EXPIRE:
+            if (isdigit(ch)) {
+                r->expire = r->expire * 10 + (uint32_t)(ch - '0');
+            } else if (ch == ' ' || ch == CR) {
+                p = p - 1;
+                r->token = NULL;
+                state = SW_RUNTO_CRLF;
+            }
+            break;
 
         case SW_RUNTO_VAL:
             switch (ch) {
@@ -1593,7 +1627,7 @@ static bool
 memcache_need_warmup(struct msg *req, struct msg *rsp)
 {
     /* Only handle get */
-    if (memcache_get(req) && memcache_value(rsp)) {
+    if (memcache_getex(req) && memcache_value(rsp)) {
         return true;
     }
 
@@ -1646,7 +1680,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
     n = nc_scnprintf(dst->last, msize, "set %.*s %.*s %d %d noreply\r\n",
                      (int)(rsp->key_end - rsp->key_start), rsp->key_start,
                      (int)(rsp->flags_end - rsp->flags_start), rsp->flags_start,
-                     0,
+                     rsp->expire,
                      rsp->vlen);
     dst->last += n;
     ASSERT(dst->last <= dst->end);
