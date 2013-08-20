@@ -1735,6 +1735,8 @@ memcache_build_notify(struct msg *req)
     struct mbuf *mbuf;
     char *cmd;
     int n;
+    int64_t now;
+    char time_buffer[21];
 
     c_conn = req->owner;
     pool = c_conn->owner;
@@ -1754,6 +1756,10 @@ memcache_build_notify(struct msg *req)
     }
     mbuf_insert(&msg->mhdr, mbuf);
 
+    now = nc_msec_now() / 1000;
+    n = nc_scnprintf(time_buffer, sizeof(time_buffer), "%lld", now);
+    ASSERT(n < sizeof(time_buffer));
+
     n = nc_scnprintf(mbuf->last, mbuf_size(mbuf), 
                      "*3\r\n"
                      "$5\r\n"
@@ -1761,10 +1767,11 @@ memcache_build_notify(struct msg *req)
                      "$%d\r\n"
                      "%.*s\r\n" /* pid */
                      "$%d\r\n"
-                     "%s %.*s\r\n", /* "cmd req_key" */
+                     "%s %s %.*s\r\n", /* "cmd req_key" */
                      pool->name.len,
                      pool->name.len, pool->name.data,
-                     strlen(cmd) + 1 + (req->key_end - req->key_start),
+                     n + 1 + strlen(cmd) + 1 + (req->key_end - req->key_start),
+                     time_buffer,
                      cmd, 
                      req->key_end - req->key_start, req->key_start);
     log_debug(LOG_VERB, "notify: %.*s", n, mbuf->last);

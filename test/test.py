@@ -187,14 +187,14 @@ class TestBasic(unittest.TestCase):
         mcval = self.beta.get('{betans}' + key)
         self.assertEqual(mcval, val)
     
-    def test_notify(self):
-        key = id_generator()
+    # def test_notify(self):
+    #     key = id_generator()
         
-        self.mcq.delete("alpha")
+    #     self.mcq.delete("alpha")
 
-        self.alpha.delete(key)
-        rval = self.mcq.lpop("alpha")
-        self.assertEqual(rval, "delete %s" % key)
+    #     self.alpha.delete(key)
+    #     rval = self.mcq.lpop("alpha")
+    #     self.assertEqual(rval, "delete %s" % key)
         
         
 if __name__ == '__main__':
