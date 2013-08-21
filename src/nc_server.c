@@ -136,9 +136,9 @@ server_each_set_stats(void *elem, void *data)
     struct server_pool *sp = data;
 
     if (sp->redis) {
-        s->stats = memcache_create_stats();
+        s->stats = redis_create_stats();        
     } else {
-        s->stats = redis_create_stats();
+        s->stats = memcache_create_stats();
     }
 
     if (s->stats == NULL) {

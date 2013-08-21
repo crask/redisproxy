@@ -161,7 +161,6 @@ void server_ref(struct conn *conn, void *owner);
 void server_unref(struct conn *conn);
 int server_timeout(struct conn *conn);
 bool server_active(struct conn *conn);
-bool server_cold(struct conn *conn);
 rstatus_t server_init(struct array *server, struct array *conf_server, struct server_pool *sp);
 void server_deinit(struct array *server);
 struct conn *server_conn(struct server *server);
@@ -169,7 +168,6 @@ rstatus_t server_connect(struct context *ctx, struct server *server, struct conn
 void server_close(struct context *ctx, struct conn *conn);
 void server_connected(struct context *ctx, struct conn *conn);
 void server_ok(struct context *ctx, struct conn *conn);
-void server_warmup(struct msg *req, struct msg *rsp);
 
 struct conn *server_pool_conn(struct context *ctx, struct server_pool *pool, uint8_t *key, uint32_t keylen);
 rstatus_t server_pool_run(struct server_pool *pool);

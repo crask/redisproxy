@@ -331,8 +331,6 @@ core_tick(struct context *ctx)
     server_pool_update_quota(ctx);
 
     server_pool_probe(ctx);
-    
-    core_timeout(ctx);
 }
 
 rstatus_t
@@ -357,7 +355,9 @@ core_loop(struct context *ctx)
     if (nsd < 0) {
         return nsd;
     }
-
+    
+    core_timeout(ctx);
+    
     stats_swap(ctx->stats);
 
     return NC_OK;

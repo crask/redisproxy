@@ -1636,10 +1636,10 @@ memcache_need_warmup(struct msg *req, struct msg *rsp)
 
 /* 
    Request:
-   get <key>\r\n
+   getex <key>\r\n
 
    Response:
-   VALUE <key> <flags> <bytes> [<cas unique>]\r\n
+   VALUE <key> <flags> <bytes> <fake token> <expire time>\r\n
    <data block>\r\n
    END\r\n
 
@@ -1767,11 +1767,12 @@ memcache_build_notify(struct msg *req)
                      "$%d\r\n"
                      "%.*s\r\n" /* pid */
                      "$%d\r\n"
-                     "%s %s %.*s\r\n", /* "cmd req_key" */
-                     pool->name.len,
-                     pool->name.len, pool->name.data,
-                     n + 1 + strlen(cmd) + 1 + (req->key_end - req->key_start),
+                     "%s %.*s %s %.*s\r\n", /* "timestamp from cmd req_key" */
+                     pool->namespace.len,
+                     pool->namespace.len, pool->namespace.data,
+                     n + 1 + pool->name.len + 1 + strlen(cmd) + 1 + (req->key_end - req->key_start),
                      time_buffer,
+                     pool->name.len, pool->name.data,
                      cmd, 
                      req->key_end - req->key_start, req->key_start);
     log_debug(LOG_VERB, "notify: %.*s", n, mbuf->last);
@@ -1925,6 +1926,7 @@ memcache_routing(struct context *ctx, struct server_pool *pool,
             f_conn = server_pool_conn(ctx, peer, key->data, key->len);
             if (f_conn != NULL && !memcache_cold(f_conn)) {
                 /* Record the original target */
+                /* FIXME: what if the s_conn is closed during warming up? */
                 msg->origin = s_conn;
                 log_debug(LOG_VERB, "fallback to peer connection");
                 return f_conn;
