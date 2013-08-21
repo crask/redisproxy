@@ -68,3 +68,5 @@ cscope.*
 
 *.pyc
 env.sh
+
+log
