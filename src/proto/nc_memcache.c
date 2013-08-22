@@ -1243,7 +1243,6 @@ memcache_parse_rsp(struct msg *r)
             break;
 
         case SW_VAL:
-            /* FIXME: maybe we can unify the INLINE_VAL and VAL? */
             if (r->val_start == NULL) {
                 r->val_start = p;
             }
@@ -1926,7 +1925,9 @@ memcache_routing(struct context *ctx, struct server_pool *pool,
             f_conn = server_pool_conn(ctx, peer, key->data, key->len);
             if (f_conn != NULL && !memcache_cold(f_conn)) {
                 /* Record the original target */
-                /* FIXME: what if the s_conn is closed during warming up? */
+                /* FIXME: what if the s_conn is closed during warming
+                 * up? This is a potential bug, fix it in the next version
+                 */
                 msg->origin = s_conn;
                 log_debug(LOG_VERB, "fallback to peer connection");
                 return f_conn;
