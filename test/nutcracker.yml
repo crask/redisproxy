@@ -1,6 +1,6 @@
-alpha:
+alpha_cluster:
   listen: 127.0.0.1:22121
-  hash: fnv1a_64
+  hash: fnv1a_32
   distribution: range
   preconnect: true
   timeout: 5
@@ -9,9 +9,9 @@ alpha:
   server_retry_timeout: 2000
   auto_probe_hosts: true
   gutter: alpha_gutter
-  namespace: alphans
+  namespace: alpha_namespace
   auto_warmup: true
-  peer: beta
+  peer: beta_cluster
   rate: 100000
   burst: 200000
   message_queue: mcq
@@ -20,7 +20,7 @@ alpha:
   
 alpha_gutter:
   listen: 127.0.0.1:22122
-  hash: fnv1a_64
+  hash: fnv1a_32
   distribution: ketama
   preconnect: true
   timeout: 5
@@ -30,9 +30,9 @@ alpha_gutter:
   servers:
     - 127.0.0.1:11212:1 server1
 
-beta:
+beta_cluster:
   listen: 127.0.0.1:22123
-  hash: fnv1a_64
+  hash: fnv1a_32
   distribution: range
   preconnect: true
   timeout: 5
@@ -41,18 +41,19 @@ beta:
   server_retry_timeout: 2000
   auto_probe_hosts: true
   gutter: beta_gutter
-  namespace: betans
+  namespace: beta_namespace
   auto_warmup: true
-  peer: alpha
+  peer: alpha_cluster
   rate: 100000
   burst: 200000
+  message_queue: mcq
   servers:
    - 127.0.0.1:11213:1 server1^0
 
 
 beta_gutter:
   listen: 127.0.0.1:22124
-  hash: fnv1a_64
+  hash: fnv1a_32
   distribution: ketama
   preconnect: true
   timeout: 5
@@ -68,8 +69,8 @@ gamma:
   virtual: true
   hash_tag: "{}"
   downstreams:
-    - alphans alpha
-    - betans beta
+    - alpha_namespace alpha_cluster
+    - beta_namespace beta_cluster
 
 
 mcq:

@@ -46,12 +46,12 @@ class TestBasic(unittest.TestCase):
         return client
 
     def setUp(self):        
-        self.alpha = self.new_pool_client('alpha')
-        self.alpha_server = self.new_server_client('alpha')
+        self.alpha = self.new_pool_client('alpha_cluster')
+        self.alpha_server = self.new_server_client('alpha_cluster')
         self.alpha_gutter = self.new_pool_client('alpha_gutter')
 
-        self.beta = self.new_pool_client('beta')
-        self.beta_server = self.new_server_client('beta')
+        self.beta = self.new_pool_client('beta_cluster')
+        self.beta_server = self.new_server_client('beta_cluster')
         self.beta_gutter = self.new_pool_client('beta_gutter')
         
         self.gamma = self.new_pool_client('gamma')
@@ -141,7 +141,7 @@ class TestBasic(unittest.TestCase):
         rc = self.alpha_server._read()
         self.assertEqual(rc, 'OK\r\n')
 
-        probe_interval = int(self.conf['alpha']['server_retry_timeout'])/1000
+        probe_interval = int(self.conf['alpha_cluster']['server_retry_timeout'])/1000
         time.sleep(probe_interval)
 
         stats = self.alpha_server.stats()
@@ -178,13 +178,13 @@ class TestBasic(unittest.TestCase):
         key = id_generator()
         val = id_generator()
     
-        self.gamma.set('{alphans}' + key, val)
-        self.gamma.set('{betans}' + key, val)
+        self.gamma.set('{alpha_namespace}' + key, val)
+        self.gamma.set('{beta_namespace}' + key, val)
 
-        mcval = self.alpha.get('{alphans}' + key)
+        mcval = self.alpha.get('{alpha_namespace}' + key)
         self.assertEqual(mcval, val)
 
-        mcval = self.beta.get('{betans}' + key)
+        mcval = self.beta.get('{beta_namespace}' + key)
         self.assertEqual(mcval, val)
     
     # def test_notify(self):
