@@ -149,7 +149,8 @@ conf_server_init(struct conf_server *cs)
     cs->port = 0;
     cs->weight = 0;
     cs->start = 0;
-    
+    cs->end = 0;
+
     memset(&cs->info, 0, sizeof(cs->info));
 
     cs->valid = 0;
@@ -1678,31 +1679,30 @@ char *
 conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 {
     rstatus_t status;
+    uint8_t *p, *q, *start;
+    uint8_t *pname, *addr, *port, *weight, *name, *rstart, *rend;
+    uint32_t k, pnamelen, addrlen, portlen, weightlen, namelen, rstartlen, rendlen;
     struct array *a;
+    struct string address;
     struct string *value;
     struct conf_server *field;
-    uint8_t *p, *q, *start;
-    uint8_t *pname, *addr, *port, *weight, *name, *rstart;
-    uint32_t k, delimlen, pnamelen, addrlen, portlen, weightlen, namelen, rstartlen;
-    struct string address;
-    char delim[] = "^ ::"; /* from right to left */
-
+    char delim[] = "-  ::";     /* from right to left */
+    
     string_init(&address);
     p = conf;
     a = (struct array *)(p + cmd->offset);
-
+    
     field = array_push(a);
     if (field == NULL) {
         return CONF_ERROR;
     }
 
     conf_server_init(field);
-
+    
     value = array_top(&cf->arg);
 
-    /* parse "hostname:port:weight [name]" or "/path/unix_socket:weight [name]" from the end */
-    p = value->data + value->len - 1;
-    start = value->data;
+    p = value->data + value->len - 1; /* value end ptr */
+    start = value->data;              /* value start ptr */
     addr = NULL;
     addrlen = 0;
     weight = NULL;
@@ -1713,37 +1713,85 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     namelen = 0;
     rstart = NULL;
     rstartlen = 0;
+    rend = NULL;
+    rendlen = 0;
     
-    delimlen = value->data[0] == '/' ? 3 : 4;
+                    
 
-    for (k = 0; k < sizeof(delim); k++) {
+
+    /* case a: 127.0.0.1:11213:1 server1 0-32768 */    
+    /* case b: 127.0.0.1:11213:1 server1 */    
+    /* case c: 127.0.0.1:11213:1 */    
+
+    for (k = 0; k < strlen(delim); k++) {
         q = nc_strrchr(p, start, delim[k]);
         if (q == NULL) {
-            if (k == 0 || k == 1) {
-                /* range and name is optional */
+            if (k == 0) {
+                /* case b or c, range is optional */
+                k++;
                 continue;
-            } 
-            break;
+            } else if (k == 1) {
+                if (rend == NULL) {
+                    /* case b or c, name is optional, skip the first
+                     * space after name */
+                    k++;
+                    continue;
+                } else {
+                    /* case a, name is a must */
+                }
+            } else if (k == 2) {
+                if (rend == NULL) {
+                    /* case b or c, name is optional */
+                    continue;
+                } else {
+                    /* case a, name is a must */
+                    break;
+                }
+            } else if (k == 4) {
+                if (value->data[0] == '/') {
+                    break;
+                } else {
+                    return "wrong server format string";
+                }
+            } else {
+                return "wrong server format string";
+            }
         }
-
+        
         switch (k) {
         case 0:
+            /* case 1 */
+            rend = q + 1;
+            rendlen = (uint32_t)(p - rend + 1);
+            log_debug(LOG_INFO, "rend: %.*s", rendlen, rend);
+            break;
+
+        case 1:
             rstart = q + 1;
             rstartlen = (uint32_t)(p - rstart + 1);
-            break;
-        case 1:
-            name = q + 1;
-            namelen = (uint32_t)(p - name + 1);
+            log_debug(LOG_INFO, "rstart: %.*s", rstartlen, rstart);
             break;
 
         case 2:
-            weight = q + 1;
-            weightlen = (uint32_t)(p - weight + 1);
+            name = q + 1;
+            namelen = (uint32_t)(p - name + 1);
+            log_debug(LOG_INFO, "name: %.*s", namelen, name);
             break;
 
         case 3:
+            weight = q + 1;
+            weightlen = (uint32_t)(p - weight + 1);
+            log_debug(LOG_INFO, "weight: %.*s", weightlen, weight);
+
+            pname = value->data;
+            pnamelen = (uint32_t)(p - pname + 1);
+            log_debug(LOG_INFO, "pname: %.*s", pnamelen, pname);
+            break;
+
+        case 4:
             port = q + 1;
             portlen = (uint32_t)(p - port + 1);
+            log_debug(LOG_INFO, "port: %.*s", portlen, port);
             break;
 
         default:
@@ -1752,44 +1800,37 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         p = q - 1;
     }
-
-    if (k != delimlen) {
-        return "has an invalid \"hostname:port:weight [name[:range_start]]\"or \"/path/unix_socket:weight [name]\" format string";
-    }
-
-    pname = value->data;
-    pnamelen = rstartlen > 0 ? value->len - (rstartlen + 1 + namelen + 1) :
-            namelen > 0 ? value->len - (namelen + 1) : value->len;
     
     status = string_copy(&field->pname, pname, pnamelen);
     if (status != NC_OK) {
         array_pop(a);
         return CONF_ERROR;
     }
-
+    
     addr = start;
     addrlen = (uint32_t)(p - start + 1);
-
+    
     if (rstart != NULL) {
         field->start = nc_atoi(rstart, rstartlen);
         if (field->start < 0) {
-            return "has an invalid range start in \"hostname:port:weight [name[:range_start]]\" format string";
+            return "has an invalid range start";
         }
     }
-    
-    field->weight = nc_atoi(weight, weightlen);
-    if (field->weight < 0) {
-        return "has an invalid weight in \"hostname:port:weight [name]\" format string";
+
+    if (rend != NULL) {
+        field->end = nc_atoi(rend, rendlen);
+        if (field->end < 0) {
+            return "has an invalid range end";
+        }
     }
 
-    
     if (value->data[0] != '/') {
         field->port = nc_atoi(port, portlen);
         if (field->port < 0 || !nc_valid_port(field->port)) {
-            return "has an invalid port in \"hostname:port:weight [name]\" format string";
+            return "has an invalid port";
         }
     }
-
+    
     if (name == NULL) {
         /*
          * To maintain backward compatibility with libmemcached, we don't
@@ -1809,21 +1850,21 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     if (status != NC_OK) {
         return CONF_ERROR;
     }
-
+    
     status = string_copy(&address, addr, addrlen);
     if (status != NC_OK) {
         return CONF_ERROR;
     }
-
+    
     status = nc_resolve(&address, field->port, &field->info);
     if (status != NC_OK) {
         string_deinit(&address);
         return CONF_ERROR;
     }
-
+    
     string_deinit(&address);
     field->valid = 1;
-
+    
     return CONF_OK;
 }
 

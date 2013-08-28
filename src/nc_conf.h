@@ -75,6 +75,7 @@ struct conf_server {
     int             port;               /* port */
     int             weight;             /* weight */
     int             start;              /* range start */
+    int             end;                /* range end */
     struct sockinfo info;               /* connect socket info */
     unsigned        valid:1;            /* valid? */
 };
