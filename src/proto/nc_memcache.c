@@ -1759,16 +1759,19 @@ memcache_build_notify(struct msg *req)
     n = nc_scnprintf(time_buffer, sizeof(time_buffer), "%lld", now);
     ASSERT(n < sizeof(time_buffer));
 
+    const char MQ_PREFIX[] = "queue";
+    const char MQ_KIND[] = "regular";
+    const char MQ_STATE[] = "todo";
     n = nc_scnprintf(mbuf->last, mbuf_size(mbuf), 
                      "*3\r\n"
                      "$5\r\n"
                      "LPUSH\r\n"
                      "$%d\r\n"
-                     "%.*s\r\n" /* pid */
+                     "%s %.*s->%.*s %s %s\r\n" /* queue ns->ns regular todo */
                      "$%d\r\n"
                      "%s %.*s %s %.*s\r\n", /* "timestamp from cmd req_key" */
-                     pool->namespace.len,
-                     pool->namespace.len, pool->namespace.data,
+                     sizeof(MQ_PREFIX) + pool->namespace.len * 2 + 2 + sizeof(MQ_KIND) + sizeof(MQ_STATE),
+                     MQ_PREFIX, pool->namespace.len, pool->namespace.data, pool->namespace.len, pool->namespace.data, MQ_KIND, MQ_STATE,
                      n + 1 + pool->name.len + 1 + strlen(cmd) + 1 + (req->key_end - req->key_start),
                      time_buffer,
                      pool->name.len, pool->name.data,
