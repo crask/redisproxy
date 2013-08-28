@@ -157,14 +157,49 @@ server_compare(const void *lhs, const void *rhs)
     return (ls->range_start - rs->range_start);
 }
 
+static rstatus_t
+server_check_range(struct array *server)
+{
+    struct server *cur, *next;
+    uint32_t nserver, i;
 
+    nserver = array_n(server);
+
+    /* sort the servers according to range_start */
+    array_sort(server, server_compare);
+    
+    cur = array_get(server, 0);
+    if (cur->range_start != 0) {
+        return NC_ERROR;
+    }
+    
+    for (i = 0; i < nserver - 1; i++) {
+        cur = array_get(server, i);
+        next = array_get(server, i + 1);
+        if (cur->range_start == next->range_start &&
+            cur->range_end == next->range_end) {
+            /* cur and next belong to the same partition */
+        } else if (cur->range_end == next->range_start) {
+            
+        } else {
+            return NC_ERROR;
+        }
+    }
+
+    cur = array_get(server, nserver - 1);
+    if (cur->range_end != DIST_RANGE_MAX) {
+        return NC_ERROR;
+    }
+
+    return NC_OK;
+}
 rstatus_t
 server_init(struct array *server, struct array *conf_server,
             struct server_pool *sp)
 {
     rstatus_t status;
-    uint32_t nserver, i;
-    struct server *cur, *next;
+    uint32_t nserver;
+
 
     nserver = array_n(conf_server);
     ASSERT(nserver != 0);
@@ -183,29 +218,13 @@ server_init(struct array *server, struct array *conf_server,
     }
 
     ASSERT(array_n(server) == nserver);
-
+    
     if (sp->dist_type == DIST_RANGE) {
-        /* sort the servers according to range_start */
-        array_sort(server, server_compare);
-        
-        for (i = 0; i < nserver - 1; i++) {
-            cur = array_get(server, i);
-            next = array_get(server, i + 1);            
-            if (cur->range_start >= next->range_start
-                || cur->range_start >= DIST_RANGE_MAX) {
-                log_error("invalid range start: %.*s^%"PRIu32, 
-                          sp->name.len, sp->name.data, cur->range_start);
-                return NC_ERROR;
-            }
-            /* range is [start, end) */
-            cur->range_end = next->range_start;
+        status = server_check_range(server);
+        if (status != NC_OK) {
+            server_deinit(server);
+            return status;
         }
-        
-        cur = array_get(server, nserver - 1);
-        if (cur->range_start > DIST_RANGE_MAX) {
-            return NC_ERROR;
-        }
-        cur->range_end = DIST_RANGE_MAX;
     }
 
     array_each(server, server_dump, NULL);
@@ -240,13 +259,13 @@ server_deinit(struct array *server)
         s = array_pop(server);
         pool = s->owner;
         
-        ASSERT(pool->virtual || s->stats != NULL);
         ASSERT(TAILQ_EMPTY(&s->s_conn_q) && s->ns_conn_q == 0);
-
-        if (pool->redis) {
-            redis_destroy_stats(s->stats);
-        } else {
-            memcache_destroy_stats(s->stats);
+        if (s->stats != NULL) {
+            if (pool->redis) {
+                redis_destroy_stats(s->stats);
+            } else {
+                memcache_destroy_stats(s->stats);
+            }
         }
     }
     array_deinit(server);

@@ -220,7 +220,7 @@ conf_server_each_transform(void *elem, void *data)
     s->failure_count = 0;
 
     s->range_start = cs->start;
-    s->range_end = 0;
+    s->range_end = cs->end;
 
     s->next_probe = 0LL;
     
@@ -1763,35 +1763,29 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
             /* case 1 */
             rend = q + 1;
             rendlen = (uint32_t)(p - rend + 1);
-            log_debug(LOG_INFO, "rend: %.*s", rendlen, rend);
             break;
 
         case 1:
             rstart = q + 1;
             rstartlen = (uint32_t)(p - rstart + 1);
-            log_debug(LOG_INFO, "rstart: %.*s", rstartlen, rstart);
             break;
 
         case 2:
             name = q + 1;
             namelen = (uint32_t)(p - name + 1);
-            log_debug(LOG_INFO, "name: %.*s", namelen, name);
             break;
 
         case 3:
             weight = q + 1;
             weightlen = (uint32_t)(p - weight + 1);
-            log_debug(LOG_INFO, "weight: %.*s", weightlen, weight);
 
             pname = value->data;
             pnamelen = (uint32_t)(p - pname + 1);
-            log_debug(LOG_INFO, "pname: %.*s", pnamelen, pname);
             break;
 
         case 4:
             port = q + 1;
             portlen = (uint32_t)(p - port + 1);
-            log_debug(LOG_INFO, "port: %.*s", portlen, port);
             break;
 
         default:
@@ -1822,6 +1816,11 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         if (field->end < 0) {
             return "has an invalid range end";
         }
+    }
+
+    if (!(rstart != NULL && rend != NULL && rstart < rend) &&
+        !(rstart == NULL && rend == NULL) ) {
+        return "has an invalid range";
     }
 
     if (value->data[0] != '/') {
