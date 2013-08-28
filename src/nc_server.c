@@ -193,6 +193,7 @@ server_check_range(struct array *server)
 
     return NC_OK;
 }
+
 rstatus_t
 server_init(struct array *server, struct array *conf_server,
             struct server_pool *sp)
@@ -861,6 +862,71 @@ server_pool_each_set_owner(void *elem, void *data)
 }
 
 static rstatus_t
+server_pool_each_dump(void *elem, void *data)
+{
+    struct server_pool *sp = elem;
+    struct server *server;
+    uint32_t i, j;
+    struct array *p;
+    struct continuum *c;
+    
+    for (i = 0; i < array_n(&sp->partition); i++) {
+        p = array_get(&sp->partition, i);
+        log_debug(LOG_VVERB, "partition: %d", i);
+
+        for (j = 0; j < array_n(p); j++) {
+            c = array_get(p, j);
+            server = array_get(&sp->server, c->index);
+            log_debug(LOG_VVERB, "continuum index:%d value:%d [%d, %d)",
+                      c->index, c->value, server->range_start, server->range_end);
+        }
+    }
+
+    return NC_OK;
+}
+
+static rstatus_t
+server_pool_each_init_partition(void *elem, void *data)
+{
+    rstatus_t status;
+    struct server_pool *sp = elem;
+    struct server *last = NULL, *curr;
+    uint32_t i, nserver;
+    struct array *p = NULL;
+    struct continuum *c;
+    
+    status = array_init(&sp->partition, CONF_DEFAULT_PARTITIONS, sizeof(struct array));
+    if (status != NC_OK) {
+        return status;
+    }
+
+    nserver = array_n(&sp->server);
+    for (i = 0; i < nserver; i++) {
+        curr = array_get(&sp->server, i);
+
+        if (last == NULL || curr->range_start != last->range_start) {
+            p = array_push(&sp->partition);
+            if (p == NULL) {
+                return NC_ENOMEM;
+            }
+            status = array_init(p, CONF_DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
+            if (status != NC_OK) {
+                return status;
+            }
+        }
+
+        ASSERT(p != NULL);
+        
+        c = array_push(p);
+        c->index = i;
+        c->value = (uint32_t)curr->range_end;
+        last = curr;
+    }
+    
+    return NC_OK;
+}
+
+static rstatus_t
 server_pool_each_set_gutter(void *elem, void *data)
 {
     struct server_pool *sp = elem, *pool;
@@ -1054,6 +1120,12 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
     }
     ASSERT(array_n(server_pool) == npool);
 
+    status = array_each(server_pool, server_pool_each_init_partition, NULL);
+    if (status != NC_OK) {
+        server_pool_deinit(server_pool);
+        return status;
+    }
+    
     /* set ctx as the server pool owner */
     status = array_each(server_pool, server_pool_each_set_owner, ctx);
     if (status != NC_OK) {
@@ -1100,6 +1172,8 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
+    array_each(server_pool, server_pool_each_dump, NULL);
+
     log_debug(LOG_DEBUG, "init %"PRIu32" pools", npool);
 
     return NC_OK;
@@ -1108,7 +1182,8 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
 void
 server_pool_deinit(struct array *server_pool)
 {
-    uint32_t i, npool;
+    uint32_t i, j, npool, npartition;
+    struct array *p;
 
     for (i = 0, npool = array_n(server_pool); i < npool; i++) {
         struct server_pool *sp;
@@ -1123,7 +1198,17 @@ server_pool_deinit(struct array *server_pool)
             sp->nserver_continuum = 0;
             sp->nlive_server = 0;
         }
-        
+
+        npartition = array_n(&sp->partition);
+        if (npartition > 0) {
+            for (j = 0; j < npartition; j++) {
+                p = array_pop(&sp->partition);
+                array_rewind(p);
+                array_deinit(p);
+            }
+            array_deinit(&sp->partition);
+        }
+                        
         array_rewind(&sp->downstreams);
         array_deinit(&sp->downstreams);
 

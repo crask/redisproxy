@@ -357,6 +357,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->continuum = NULL;
     sp->nlive_server = 0;
     sp->next_rebuild = 0LL;
+    array_null(&sp->partition);
 
     sp->name = cp->name;
     sp->addrstr = cp->listen.pname;

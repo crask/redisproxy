@@ -112,6 +112,7 @@ struct server_pool {
     struct continuum   *continuum;           /* continuum */
     uint32_t           nlive_server;         /* # live server */
     int64_t            next_rebuild;         /* next distribution rebuild time in usec */
+    struct array       partition;            /* continuum[][] */
 
     struct string      name;                 /* pool name (ref in conf_pool) */
     struct string      addrstr;              /* pool address (ref in conf_pool) */
