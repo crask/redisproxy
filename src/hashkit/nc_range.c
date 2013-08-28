@@ -8,11 +8,12 @@
 rstatus_t
 range_update(struct server_pool *pool)
 {
-    uint32_t nserver, nlive_server;
+    uint32_t nserver, nlive_server, npartition;
     int64_t now;
-    uint32_t server_index, continuum_index;
+    uint32_t server_index, partition_index, continuum_index;
     struct server *server;
-    struct continuum *continuum;
+    struct continuum *continuum, *c;
+    struct array *partition;
 
     now = nc_usec_now();
     if (now < 0) {
@@ -20,6 +21,7 @@ range_update(struct server_pool *pool)
     }
 
     nserver = array_n(&pool->server);
+    npartition = array_n(&pool->partition);
     nlive_server = 0;
     pool->next_rebuild = 0LL;
 
@@ -54,22 +56,25 @@ range_update(struct server_pool *pool)
     }
     
     /* Allocate the continuum for the first time */
-    if (nserver > pool->nserver_continuum) {
-        continuum = nc_realloc(pool->continuum, sizeof(*continuum) * nserver);
+    if (npartition > pool->nserver_continuum) {
+        continuum = nc_realloc(pool->continuum, sizeof(*continuum) * npartition);
         if (continuum == NULL) {
             return NC_ENOMEM;
         }
 
         pool->continuum = continuum;
-        pool->nserver_continuum = nserver;
-        pool->ncontinuum = nserver;
+        pool->nserver_continuum = npartition;
+        pool->ncontinuum = npartition;
         
         continuum_index = 0;
-        for (server_index = 0; server_index < nserver; server_index++) {
-            server = array_get(&pool->server, server_index);
+        for (partition_index = 0; partition_index < npartition; partition_index++) {
+            partition = array_get(&pool->partition, partition_index);
+
+            ASSERT(array_n(partition) > 0);
+            c = array_get(partition, 0);
             
-            pool->continuum[continuum_index].index = server_index;
-            pool->continuum[continuum_index++].value = server->range_end;
+            pool->continuum[continuum_index].index = partition_index;
+            pool->continuum[continuum_index++].value = c->value;
         }
     }
     
@@ -80,9 +85,10 @@ range_update(struct server_pool *pool)
 
 
 uint32_t
-range_dispatch(struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
+range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
-    struct continuum *left, *right, *middle;
+    struct continuum *left, *right, *middle, *c;
+    struct array *p;
 
     hash &= DIST_RANGE_MAX - 1;         /* only keep the low 16 bits */
     left = continuum - 1;
@@ -106,8 +112,14 @@ range_dispatch(struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
     }    
     /* hash in [left, right) and right - left = 1 */
     ASSERT(right->index < ncontinuum);
-    
+
+    p = array_get(&pool->partition, right->index);
+
+    ASSERT(array_n(p) > 0);
+
+    c = array_get(p, random() % array_n(p));
+
     log_debug(LOG_VVERB, "dispatch hash %"PRIu32" to index %"PRIu32,
-              hash, right->index);
-    return right->index;
+              hash, c->index);
+    return c->index;
 }

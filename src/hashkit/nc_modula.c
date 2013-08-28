@@ -143,7 +143,7 @@ modula_update(struct server_pool *pool)
 }
 
 uint32_t
-modula_dispatch(struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
+modula_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
     struct continuum *c;
 

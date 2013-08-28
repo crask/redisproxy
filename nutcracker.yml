@@ -1,0 +1,17 @@
+alpha:
+  listen: 127.0.0.1:22121
+  hash: fnv1a_64
+  distribution: range
+  preconnect: true
+  timeout: 5
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  rate: 100000
+  burst: 200000
+  servers:
+   - 127.0.0.1:11211:1 server1 0-32768
+   - 127.0.0.1:11212:1 server2 0-32768
+   - 127.0.0.1:11213:1 server3 32768-65536
+   - 127.0.0.1:11214:1 server4 32768-65536
+
