@@ -63,6 +63,8 @@ nutcracker
 
 Makefile
 Makefile.in
+Makefile.release
+Makefile.debug
 
 cscope.*
 

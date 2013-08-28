@@ -86,7 +86,7 @@ def killall_proxy():
     subprocess.call(command, stderr=open('/dev/null', 'w'))
 
 def start_cluster(filename):
-    proxy = start_proxy(filename, ['-v', '7'])
+    proxy = start_proxy(filename, ['-v', '8'])
 
     conf = load_conf(filename)
     for server_pool_name in conf:
