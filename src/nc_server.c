@@ -152,46 +152,73 @@ server_each_set_stats(void *elem, void *data)
 static int
 server_compare(const void *lhs, const void *rhs)
 {
-    struct server *ls = (struct server *)lhs, *rs = (struct server *)rhs;
+    struct server **ls = (struct server **)lhs, **rs = (struct server **)rhs;
 
-    return (ls->range_start - rs->range_start);
+    return (*ls)->range_start - (*rs)->range_start;
 }
 
 static rstatus_t
 server_check_range(struct array *server)
 {
-    struct server *cur, *next;
+    rstatus_t status;
+    struct server **cur, **next;
+    struct array servers;
     uint32_t nserver, i;
 
     nserver = array_n(server);
 
-    /* sort the servers according to range_start */
-    array_sort(server, server_compare);
-    
-    cur = array_get(server, 0);
-    if (cur->range_start != 0) {
+    status = array_init(&servers, nserver, sizeof(struct server *));
+    if (status != NC_OK) {
         return NC_ERROR;
+    }
+
+    for (i = 0; i < nserver; i++) {
+        cur = array_push(&servers);
+        ASSERT(cur != NULL);
+
+        *cur = array_get(server, i);
+    }
+
+    /* sort the servers according to range_start */
+    array_sort(&servers, server_compare);
+    
+    cur = array_get(&servers, 0);
+    ASSERT(cur != NULL);
+
+    if ((*cur)->range_start != 0) {
+        goto error;
     }
     
     for (i = 0; i < nserver - 1; i++) {
-        cur = array_get(server, i);
-        next = array_get(server, i + 1);
-        if (cur->range_start == next->range_start &&
-            cur->range_end == next->range_end) {
-            /* cur and next belong to the same partition */
-        } else if (cur->range_end == next->range_start) {
+        cur = array_get(&servers, i);
+        next = array_get(&servers, i + 1);
+        ASSERT(cur != NULL && next != NULL);
+
+        if ((*cur)->range_start == (*next)->range_start &&
+            (*cur)->range_end == (*next)->range_end) {
+            /* (*cur) and (*next) belong to the same partition */
+        } else if ((*cur)->range_end == (*next)->range_start) {
             
         } else {
-            return NC_ERROR;
+            goto error;
         }
     }
 
-    cur = array_get(server, nserver - 1);
-    if (cur->range_end != DIST_RANGE_MAX) {
-        return NC_ERROR;
-    }
+    cur = array_get(&servers, nserver - 1);
+    ASSERT(cur != NULL);
 
+    if ((*cur)->range_end != DIST_RANGE_MAX) {
+        goto error;
+    }
+    
+    array_rewind(&servers);
+    array_deinit(&servers);
     return NC_OK;
+
+error:
+    array_rewind(&servers);
+    array_deinit(&servers);
+    return NC_ERROR;
 }
 
 rstatus_t
