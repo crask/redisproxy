@@ -160,38 +160,21 @@ server_compare(const void *lhs, const void *rhs)
 static rstatus_t
 server_check_range(struct array *server)
 {
-    rstatus_t status;
     struct server **cur, **next;
-    struct array servers;
     uint32_t nserver, i;
 
     nserver = array_n(server);
-
-    status = array_init(&servers, nserver, sizeof(struct server *));
-    if (status != NC_OK) {
-        return NC_ERROR;
-    }
-
-    for (i = 0; i < nserver; i++) {
-        cur = array_push(&servers);
-        ASSERT(cur != NULL);
-
-        *cur = array_get(server, i);
-    }
-
-    /* sort the servers according to range_start */
-    array_sort(&servers, server_compare);
     
-    cur = array_get(&servers, 0);
+    cur = array_get(server, 0);
     ASSERT(cur != NULL);
 
     if ((*cur)->range_start != 0) {
-        goto error;
+        return NC_ERROR;
     }
     
     for (i = 0; i < nserver - 1; i++) {
-        cur = array_get(&servers, i);
-        next = array_get(&servers, i + 1);
+        cur = array_get(server, i);
+        next = array_get(server, i + 1);
         ASSERT(cur != NULL && next != NULL);
 
         if ((*cur)->range_start == (*next)->range_start &&
@@ -200,25 +183,18 @@ server_check_range(struct array *server)
         } else if ((*cur)->range_end == (*next)->range_start) {
             
         } else {
-            goto error;
+            return NC_ERROR;
         }
     }
 
-    cur = array_get(&servers, nserver - 1);
+    cur = array_get(server, nserver - 1);
     ASSERT(cur != NULL);
 
     if ((*cur)->range_end != DIST_RANGE_MAX) {
-        goto error;
+        return NC_ERROR;
     }
     
-    array_rewind(&servers);
-    array_deinit(&servers);
     return NC_OK;
-
-error:
-    array_rewind(&servers);
-    array_deinit(&servers);
-    return NC_ERROR;
 }
 
 rstatus_t
@@ -244,18 +220,8 @@ server_init(struct array *server, struct array *conf_server,
         server_deinit(server);
         return status;
     }
-
     ASSERT(array_n(server) == nserver);
-    
-    if (sp->dist_type == DIST_RANGE) {
-        status = server_check_range(server);
-        if (status != NC_OK) {
-            server_deinit(server);
-            return status;
-        }
-    }
-
-    array_each(server, server_dump, NULL);
+   
     /* set server owner */
     status = array_each(server, server_each_set_owner, sp);
     if (status != NC_OK) {
@@ -916,21 +882,45 @@ server_pool_each_init_partition(void *elem, void *data)
 {
     rstatus_t status;
     struct server_pool *sp = elem;
-    struct server *last = NULL, *curr;
+    struct server *last = NULL, **curr;
     uint32_t i, nserver;
     struct array *p = NULL;
     struct continuum *c;
+    struct server **q;
+    struct array server_lst;
+
+    nserver = array_n(&sp->server);
+
+    status = array_init(&server_lst, nserver, sizeof(struct server *));
+    if (status != NC_OK) {
+        return status;
+    }
+    /* TODO: deinit server_lst */
+    /* init the server pointers */
+    for (i = 0; i < nserver; i++) {
+        q = array_push(&server_lst);
+        *q = array_get(&sp->server, i);
+    }
     
+    /* sort the servers according to range_start */
+    array_sort(&server_lst, server_compare);
+
+    status = server_check_range(&server_lst);
+    if (status != NC_OK) {
+        array_deinit(&server_lst);
+        return status;
+    }
+
     status = array_init(&sp->partition, CONF_DEFAULT_PARTITIONS, sizeof(struct array));
     if (status != NC_OK) {
         return status;
     }
 
-    nserver = array_n(&sp->server);
-    for (i = 0; i < nserver; i++) {
-        curr = array_get(&sp->server, i);
 
-        if (last == NULL || curr->range_start != last->range_start) {
+    for (i = 0; i < nserver; i++) {
+        curr = array_get(&server_lst, i);
+        
+        if (last == NULL || (*curr)->range_start != last->range_start) {
             p = array_push(&sp->partition);
             if (p == NULL) {
                 return NC_ENOMEM;
@@ -944,9 +934,9 @@ server_pool_each_init_partition(void *elem, void *data)
         ASSERT(p != NULL);
         
         c = array_push(p);
-        c->index = i;
-        c->value = (uint32_t)curr->range_end;
-        last = curr;
+        c->index = (*curr)->idx;
+        c->value = (uint32_t)(*curr)->range_end;
+        last = (*curr);
     }
     
     return NC_OK;
@@ -1198,7 +1188,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
-    array_each(server_pool, server_pool_each_dump, NULL);
+    
 
     log_debug(LOG_DEBUG, "init %"PRIu32" pools", npool);
 
