@@ -881,6 +881,10 @@ memcache_parse_rsp(struct msg *r)
         SW_FLAGS,
         SW_SPACES_BEFORE_VLEN,
         SW_VLEN,
+        SW_SPACES_BEFORE_CAS,
+        SW_CAS,
+        SW_SPACES_BEFORE_EXPIRE,
+        SW_EXPIRE,
         SW_RUNTO_VAL,
         SW_VAL,
         SW_VAL_LF,
@@ -1195,11 +1199,78 @@ memcache_parse_rsp(struct msg *r)
                 /* vlen_end <- p - 1 */
                 p = p - 1; /* go back by 1 byte */
                 r->token = NULL;
-                state = SW_RUNTO_CRLF;
+                if (ch == ' ') {
+                    state = SW_SPACES_BEFORE_CAS;
+                } else {
+                    state = SW_RUNTO_CRLF;
+                }
             } else {
                 goto error;
             }
 
+            break;
+
+        case SW_SPACES_BEFORE_CAS:
+            if (ch != ' ') {
+                if (!isdigit(ch)) {
+                    goto error;
+                }
+                p = p - 1;
+                state = SW_CAS;
+            }
+
+            break;
+
+        case SW_CAS:
+            if (r->token == NULL) {
+                /* cas_start <- p */
+                r->token = p;
+            } 
+            if (isdigit(ch)) {
+                /* cas <- cas * 10 + (ch - '0') */
+                ;
+            } else if (ch == ' ' || ch == CR) {
+                /* cas_end <- p - 1 */
+                p = p - 1;
+                r->token = NULL;
+                if (ch == ' ') {
+                    state = SW_SPACES_BEFORE_EXPIRE;
+                } else {
+                    state = SW_RUNTO_CRLF;
+                }
+            } else {
+                goto error;
+            }
+
+            break;
+
+        case SW_SPACES_BEFORE_EXPIRE:
+            if (ch != ' ') {
+                if (!isdigit(ch)) {
+                    goto error;
+                }
+                p = p - 1;
+                state = SW_EXPIRE;
+            }
+
+            break;
+
+        case SW_EXPIRE:
+            if (r->token == NULL) {
+                /* expire_start <- p */
+                r->token = p;
+                r->expire = 0;
+            }
+            if (isdigit(ch)) {
+                r->expire = r->expire * 10 + (ch - '0');
+            } else if (ch == ' ' || ch == CR) {
+                p = p - 1;
+                r->token = NULL;
+                state = SW_RUNTO_CRLF;
+            } else {
+                goto error;
+            }
+            
             break;
 
         case SW_RUNTO_VAL:
