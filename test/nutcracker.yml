@@ -16,7 +16,7 @@ alpha_cluster:
   burst: 200000
   message_queue: mcq
   servers:
-   - 127.0.0.1:11211:1 server1^0
+   - 127.0.0.1:11211:1 server1 0-65536
   
 alpha_gutter:
   listen: 127.0.0.1:22122
@@ -48,7 +48,7 @@ beta_cluster:
   burst: 200000
   message_queue: mcq
   servers:
-   - 127.0.0.1:11213:1 server1^0
+   - 127.0.0.1:11213:1 server1 0-65536
 
 
 beta_gutter:
