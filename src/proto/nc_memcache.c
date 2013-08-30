@@ -286,8 +286,6 @@ memcache_parse_req(struct msg *r)
         SW_VLEN,
         SW_SPACES_BEFORE_CAS,
         SW_CAS,
-        SW_SPACES_BEFORE_EXPIRE,
-        SW_EXPIRE,
         SW_RUNTO_VAL,
         SW_VAL,
         SW_SPACES_BEFORE_NUM,
@@ -627,38 +625,13 @@ memcache_parse_req(struct msg *r)
                 /* cas_end <- p - 1 */
                 p = p - 1; /* go back by 1 byte */
                 r->token = NULL;
-                if (ch == CR) {
-                    state = SW_RUNTO_CRLF;
-                } else {
-                    state = SW_SPACES_BEFORE_EXPIRE;
-                }
+                state = SW_RUNTO_CRLF;
             } else {
                 goto error;
             }
 
             break;
-        case SW_SPACES_BEFORE_EXPIRE:
-            if (ch != ' ') {
-                if (isdigit(ch)) {
-                    r->token = p;
-                    r->expire = (uint32_t)(ch - '0');
-                    state = SW_EXPIRE;
-                } else if (ch == CR) {
-                    p = p - 1;
-                    state = SW_RUNTO_CRLF;
-                }
-            }
-            
-            break;
-        case SW_EXPIRE:
-            if (isdigit(ch)) {
-                r->expire = r->expire * 10 + (uint32_t)(ch - '0');
-            } else if (ch == ' ' || ch == CR) {
-                p = p - 1;
-                r->token = NULL;
-                state = SW_RUNTO_CRLF;
-            }
-            break;
+
 
         case SW_RUNTO_VAL:
             switch (ch) {
