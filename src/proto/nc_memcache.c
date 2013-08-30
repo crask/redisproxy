@@ -280,8 +280,8 @@ memcache_parse_req(struct msg *r)
         SW_SPACES_BEFORE_KEYS,
         SW_SPACES_BEFORE_FLAGS,
         SW_FLAGS,
-        SW_SPACES_BEFORE_EXPIRY,
-        SW_EXPIRY,
+        SW_SPACES_BEFORE_EXPIRE,
+        SW_EXPIRE,
         SW_SPACES_BEFORE_VLEN,
         SW_VLEN,
         SW_SPACES_BEFORE_CAS,
@@ -537,31 +537,31 @@ memcache_parse_req(struct msg *r)
             } else if (ch == ' ') {
                 /* flags_end <- p - 1 */
                 r->token = NULL;
-                state = SW_SPACES_BEFORE_EXPIRY;
+                state = SW_SPACES_BEFORE_EXPIRE;
             } else {
                 goto error;
             }
 
             break;
 
-        case SW_SPACES_BEFORE_EXPIRY:
+        case SW_SPACES_BEFORE_EXPIRE:
             if (ch != ' ') {
                 if (!isdigit(ch)) {
                     goto error;
                 }
-                /* expiry_start <- p; expiry <- ch - '0' */
+                /* expire_start <- p; expire <- ch - '0' */
                 r->token = p;
-                state = SW_EXPIRY;
+                state = SW_EXPIRE;
             }
 
             break;
 
-        case SW_EXPIRY:
+        case SW_EXPIRE:
             if (isdigit(ch)) {
-                /* expiry <- expiry * 10 + (ch - '0') */
+                /* expire <- expire * 10 + (ch - '0') */
                 ;
             } else if (ch == ' ') {
-                /* expiry_end <- p - 1 */
+                /* expire_end <- p - 1 */
                 r->token = NULL;
                 state = SW_SPACES_BEFORE_VLEN;
             } else {
