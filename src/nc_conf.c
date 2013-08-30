@@ -1824,6 +1824,13 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         return "has an invalid range";
     }
 
+    if (weight != NULL) {
+        field->weight = nc_atoi(weight, weightlen);
+        if (field->weight < 0) {
+            return "has an invalid weight";
+        }
+    }
+
     if (value->data[0] != '/') {
         field->port = nc_atoi(port, portlen);
         if (field->port < 0 || !nc_valid_port(field->port)) {

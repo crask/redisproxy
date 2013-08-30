@@ -28,8 +28,8 @@ server_dump(void *elem, void *data)
 {
     struct server *s = elem;
     
-    log_debug(LOG_DEBUG, "%.*s range [%"PRIu32", %"PRIu32")",
-              s->pname, s->range_start, s->range_end);
+    log_debug(LOG_DEBUG, "%.*s port: %d weight: %d range [%"PRIu32", %"PRIu32")",
+              s->pname, s->port, s->weight, s->range_start, s->range_end);
 
     return NC_OK;
 }
