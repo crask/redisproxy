@@ -23,17 +23,6 @@
 #include <nc_conf.h>
 #include <nc_proto.h>
 
-static rstatus_t
-server_dump(void *elem, void *data)
-{
-    struct server *s = elem;
-    
-    log_debug(LOG_DEBUG, "%.*s port: %d weight: %d range [%"PRIu32", %"PRIu32")",
-              s->pname, s->port, s->weight, s->range_start, s->range_end);
-
-    return NC_OK;
-}
-
 void
 server_ref(struct conn *conn, void *owner)
 {
@@ -862,15 +851,16 @@ server_pool_each_dump(void *elem, void *data)
     struct array *p;
     struct continuum *c;
     
+    log_debug(LOG_DEBUG, "pool %.*s", sp->name.len, sp->name.data);
     for (i = 0; i < array_n(&sp->partition); i++) {
         p = array_get(&sp->partition, i);
-        log_debug(LOG_VVERB, "partition: %d", i);
+        log_debug(LOG_VVERB, "  partition: %d", i);
 
         for (j = 0; j < array_n(p); j++) {
             c = array_get(p, j);
             server = array_get(&sp->server, c->index);
-            log_debug(LOG_VVERB, "continuum index:%d value:%d [%d, %d)",
-                      c->index, c->value, server->range_start, server->range_end);
+            log_debug(LOG_VVERB, "    continuum index:%d value:%d %.*s %d-%d",
+                      c->index, c->value, server->pname.len, server->pname.data, server->range_start, server->range_end);
         }
     }
 
@@ -1188,7 +1178,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
-    
+    array_each(server_pool, server_pool_each_dump, NULL);
 
     log_debug(LOG_DEBUG, "init %"PRIu32" pools", npool);
 
