@@ -872,12 +872,11 @@ server_pool_each_init_partition(void *elem, void *data)
 {
     rstatus_t status;
     struct server_pool *sp = elem;
-    struct server *last = NULL, **curr;
+    struct server *last = NULL, **curr, **q;
     uint32_t i, nserver;
     struct array *p = NULL;
-    struct continuum *c;
-    struct server **q;
     struct array server_lst;
+    struct continuum *c;
 
     nserver = array_n(&sp->server);
 
@@ -885,7 +884,7 @@ server_pool_each_init_partition(void *elem, void *data)
     if (status != NC_OK) {
         return status;
     }
-    /* TODO: deinit server_lst */
+
     /* init the server pointers */
     for (i = 0; i < nserver; i++) {
         q = array_push(&server_lst);
@@ -897,15 +896,13 @@ server_pool_each_init_partition(void *elem, void *data)
 
     status = server_check_range(&server_lst);
     if (status != NC_OK) {
-        array_deinit(&server_lst);
-        return status;
+        goto error;
     }
 
     status = array_init(&sp->partition, CONF_DEFAULT_PARTITIONS, sizeof(struct array));
     if (status != NC_OK) {
-        return status;
+        goto error;
     }
-
 
     for (i = 0; i < nserver; i++) {
         curr = array_get(&server_lst, i);
@@ -913,11 +910,12 @@ server_pool_each_init_partition(void *elem, void *data)
         if (last == NULL || (*curr)->range_start != last->range_start) {
             p = array_push(&sp->partition);
             if (p == NULL) {
-                return NC_ENOMEM;
+                status = NC_ENOMEM;
+                goto error;
             }
             status = array_init(p, CONF_DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
             if (status != NC_OK) {
-                return status;
+                goto error;
             }
         }
 
@@ -929,7 +927,12 @@ server_pool_each_init_partition(void *elem, void *data)
         last = (*curr);
     }
     
-    return NC_OK;
+    status = NC_OK;
+
+error:
+    array_rewind(&server_lst);
+    array_deinit(&server_lst);
+    return status;
 }
 
 static rstatus_t
