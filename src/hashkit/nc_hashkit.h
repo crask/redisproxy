@@ -35,6 +35,7 @@
     ACTION( HASH_FNV1A_32,      fnv1a_32      ) \
     ACTION( HASH_HSIEH,         hsieh         ) \
     ACTION( HASH_MURMUR,        murmur        ) \
+    ACTION( HASH_MURMUR_64,     murmur_64     ) \
     ACTION( HASH_JENKINS,       jenkins       ) \
 
 #define DIST_CODEC(ACTION)                      \
@@ -71,6 +72,8 @@ uint32_t hash_fnv1a_32(const char *key, size_t key_length);
 uint32_t hash_hsieh(const char *key, size_t key_length);
 uint32_t hash_jenkins(const char *key, size_t length);
 uint32_t hash_murmur(const char *key, size_t length);
+uint32_t hash_murmur_64(const char *key, size_t length);
+
 
 rstatus_t ketama_update(struct server_pool *pool);
 uint32_t ketama_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash);
