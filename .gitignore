@@ -72,3 +72,5 @@ cscope.*
 env.sh
 
 log
+
+src/nc_release.h

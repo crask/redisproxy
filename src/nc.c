@@ -26,6 +26,7 @@
 #include <nc_core.h>
 #include <nc_conf.h>
 #include <nc_signal.h>
+#include <nc_release.h>
 
 #define NC_CONF_PATH        "conf/nutcracker.yml"
 
@@ -540,7 +541,8 @@ main(int argc, char **argv)
     }
 
     if (show_version) {
-        log_stderr("This is nutcracker-%s" CRLF, NC_VERSION_STRING);
+        log_stderr("This is nutcracker-%s sha=%s:%d" CRLF, 
+                   NC_VERSION_STRING, NC_GIT_SHA1, strtol(NC_GIT_DIRTY, NULL, 10) > 0);
         if (show_help) {
             nc_show_usage();
         }

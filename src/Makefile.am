@@ -39,10 +39,19 @@ nutcracker_SOURCES =			\
 	nc_array.c nc_array.h		\
 	nc_util.c nc_util.h		\
 	nc_queue.h			\
-	nc_assoc.h nc_assoc.c \
+	nc_assoc.h nc_assoc.c           \
+	nc_release.h                    \
 	nc.c
+
 
 nutcracker_LDADD = $(top_builddir)/src/hashkit/libhashkit.a
 nutcracker_LDADD += $(top_builddir)/src/proto/libproto.a
 nutcracker_LDADD += $(top_builddir)/src/event/libevent.a
 nutcracker_LDADD += $(top_builddir)/contrib/yaml-0.1.4/src/.libs/libyaml.a
+
+.PHONY: mkreleasehdr
+
+mkreleasehdr:
+	$(shell sh -c './mkreleasehdr.sh')
+
+all-recursive: mkreleasehdr
