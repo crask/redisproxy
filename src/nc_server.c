@@ -843,6 +843,24 @@ server_pool_each_set_owner(void *elem, void *data)
 }
 
 static rstatus_t
+server_each_dump(void *elem, void *data)
+{
+    struct server *server = elem;
+    char *prefix = data ? data : "";
+    struct conn *conn;
+    char *addrstr;
+
+    log_debug(LOG_DEBUG, "%sname:%.*s ns_conn_q:%d range:[%d, %d)", 
+              prefix, server->pname.len, server->pname.data, server->ns_conn_q, server->range_start, server->range_end);
+    TAILQ_FOREACH(conn, &server->s_conn_q, conn_tqe) {
+        addrstr = nc_unresolve_addr(conn->addr, conn->addrlen);
+        log_debug(LOG_DEBUG, "%s  sd:%d addr:%s", prefix, conn->sd, addrstr);
+    }
+
+    return NC_OK;
+}
+
+static rstatus_t
 server_pool_each_dump(void *elem, void *data)
 {
     struct server_pool *sp = elem;
@@ -854,13 +872,13 @@ server_pool_each_dump(void *elem, void *data)
     log_debug(LOG_DEBUG, "pool %.*s", sp->name.len, sp->name.data);
     for (i = 0; i < array_n(&sp->partition); i++) {
         p = array_get(&sp->partition, i);
-        log_debug(LOG_VVERB, "  partition: %d", i);
+        log_debug(LOG_DEBUG, "  partition: %d", i);
 
         for (j = 0; j < array_n(p); j++) {
             c = array_get(p, j);
             server = array_get(&sp->server, c->index);
-            log_debug(LOG_VVERB, "    continuum index:%d value:%d %.*s %d-%d",
-                      c->index, c->value, server->pname.len, server->pname.data, server->range_start, server->range_end);
+            log_debug(LOG_DEBUG, "    continuum index:%d value:%d", c->index, c->value);
+            server_each_dump(server, "    ");
         }
     }
 
