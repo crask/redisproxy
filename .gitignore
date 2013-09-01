@@ -74,3 +74,4 @@ env.sh
 log
 
 src/nc_release.h
+src/nc_release.c

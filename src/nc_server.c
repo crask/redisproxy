@@ -158,6 +158,7 @@ server_check_range(struct array *server)
     ASSERT(cur != NULL);
 
     if ((*cur)->range_start != 0) {
+        log_error("server: range start %d != 0", (*cur)->range_start);
         return NC_ERROR;
     }
     
@@ -180,6 +181,7 @@ server_check_range(struct array *server)
     ASSERT(cur != NULL);
 
     if ((*cur)->range_end != DIST_RANGE_MAX) {
+        log_error("server: range end %d != %d", (*cur)->range_end, DIST_RANGE_MAX);
         return NC_ERROR;
     }
     
@@ -896,6 +898,10 @@ server_pool_each_init_partition(void *elem, void *data)
     struct array server_lst;
     struct continuum *c;
 
+    if (sp->dist_type != DIST_RANGE) {
+        return NC_OK;
+    }
+
     nserver = array_n(&sp->server);
 
     status = array_init(&server_lst, nserver, sizeof(struct server *));
@@ -914,6 +920,7 @@ server_pool_each_init_partition(void *elem, void *data)
 
     status = server_check_range(&server_lst);
     if (status != NC_OK) {
+        log_error("server: failed to check range");
         goto error;
     }
 
@@ -1149,6 +1156,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
 
     status = array_each(server_pool, server_pool_each_init_partition, NULL);
     if (status != NC_OK) {
+        log_error("server: failed to init partition");
         server_pool_deinit(server_pool);
         return status;
     }
@@ -1156,6 +1164,7 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
     /* set ctx as the server pool owner */
     status = array_each(server_pool, server_pool_each_set_owner, ctx);
     if (status != NC_OK) {
+        log_error("server: failed to set owner");
         server_pool_deinit(server_pool);
         return status;
     }
