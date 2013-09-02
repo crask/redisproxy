@@ -23,6 +23,62 @@
 #include <nc_conf.h>
 #include <nc_proto.h>
 
+static rstatus_t
+server_each_dump(void *elem, void *data)
+{
+    struct server *server = elem;
+    char *prefix = data ? data : "";
+    struct conn *conn;
+    char *addrstr;
+
+    log_debug(LOG_DEBUG, "%sname:%.*s ns_conn_q:%d range:[%d, %d)", 
+              prefix, server->pname.len, server->pname.data, server->ns_conn_q, server->range_start, server->range_end);
+    TAILQ_FOREACH(conn, &server->s_conn_q, conn_tqe) {
+        addrstr = nc_unresolve_addr(conn->addr, conn->addrlen);
+        log_debug(LOG_DEBUG, "%s  sd:%d addr:%s", prefix, conn->sd, addrstr);
+    }
+
+    return NC_OK;
+}
+
+static rstatus_t
+server_pool_each_dump(void *elem, void *data)
+{
+    struct server_pool *sp = elem;
+    struct server *server;
+    uint32_t i, j;
+    struct array *p;
+    struct continuum *c;
+    
+    log_debug(LOG_DEBUG, "pool %.*s partitions:", sp->name.len, sp->name.data);
+    for (i = 0; i < array_n(&sp->partition); i++) {
+        p = array_get(&sp->partition, i);
+        log_debug(LOG_DEBUG, "  partition: %d", i);
+
+        for (j = 0; j < array_n(p); j++) {
+            c = array_get(p, j);
+            server = array_get(&sp->server, c->index);
+            log_debug(LOG_DEBUG, "    continuum index:%d value:%d", c->index, c->value);
+            server_each_dump(server, "    ");
+        }
+    }
+    
+    log_debug(LOG_DEBUG, "pool %.*s partition continuums:", sp->name.len, sp->name.data);
+    for (i = 0; i < array_n(&sp->partition_continuum); i++) {
+        p = array_get(&sp->partition_continuum, i);
+        log_debug(LOG_DEBUG, "  partition continuum: %d", i);
+
+        for (j = 0; j < array_n(p); j++) {
+            c = array_get(p, j);
+            server = array_get(&sp->server, c->index);
+            log_debug(LOG_DEBUG, "    continuum index:%d value:%d", c->index, c->value);
+            server_each_dump(server, "    ");
+        }
+    }
+
+    return NC_OK;
+}
+
 void
 server_ref(struct conn *conn, void *owner)
 {
@@ -705,11 +761,12 @@ static struct server *
 server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
 {
     struct server *server;
-    uint32_t hash, idx;
+    uint32_t hash;
+    int idx;
 
     ASSERT(array_n(&pool->server) != 0);
     ASSERT(key != NULL && keylen != 0);
-
+    
     switch (pool->dist_type) {
         case DIST_KETAMA:
             hash = server_pool_hash(pool, key, keylen);
@@ -734,9 +791,14 @@ server_pool_server(struct server_pool *pool, uint8_t *key, uint32_t keylen)
             NOT_REACHED();
             return NULL;
     }
-    ASSERT(idx < array_n(&pool->server));
 
-    server = array_get(&pool->server, idx);
+    if (idx < 0) {
+        return NULL;
+    }
+
+    ASSERT((uint32_t)idx < array_n(&pool->server));
+
+    server = array_get(&pool->server, (uint32_t)idx);
 
     log_debug(LOG_VERB, "key '%.*s' on dist %d maps to server '%.*s'", keylen,
               key, pool->dist_type, server->pname.len, server->pname.data);
@@ -844,48 +906,7 @@ server_pool_each_set_owner(void *elem, void *data)
     return NC_OK;
 }
 
-static rstatus_t
-server_each_dump(void *elem, void *data)
-{
-    struct server *server = elem;
-    char *prefix = data ? data : "";
-    struct conn *conn;
-    char *addrstr;
 
-    log_debug(LOG_DEBUG, "%sname:%.*s ns_conn_q:%d range:[%d, %d)", 
-              prefix, server->pname.len, server->pname.data, server->ns_conn_q, server->range_start, server->range_end);
-    TAILQ_FOREACH(conn, &server->s_conn_q, conn_tqe) {
-        addrstr = nc_unresolve_addr(conn->addr, conn->addrlen);
-        log_debug(LOG_DEBUG, "%s  sd:%d addr:%s", prefix, conn->sd, addrstr);
-    }
-
-    return NC_OK;
-}
-
-static rstatus_t
-server_pool_each_dump(void *elem, void *data)
-{
-    struct server_pool *sp = elem;
-    struct server *server;
-    uint32_t i, j;
-    struct array *p;
-    struct continuum *c;
-    
-    log_debug(LOG_DEBUG, "pool %.*s", sp->name.len, sp->name.data);
-    for (i = 0; i < array_n(&sp->partition); i++) {
-        p = array_get(&sp->partition, i);
-        log_debug(LOG_DEBUG, "  partition: %d", i);
-
-        for (j = 0; j < array_n(p); j++) {
-            c = array_get(p, j);
-            server = array_get(&sp->server, c->index);
-            log_debug(LOG_DEBUG, "    continuum index:%d value:%d", c->index, c->value);
-            server_each_dump(server, "    ");
-        }
-    }
-
-    return NC_OK;
-}
 
 static rstatus_t
 server_pool_each_init_partition(void *elem, void *data)
@@ -1243,6 +1264,16 @@ server_pool_deinit(struct array *server_pool)
                 array_deinit(p);
             }
             array_deinit(&sp->partition);
+        }
+
+        npartition = array_n(&sp->partition_continuum);
+        if (npartition > 0) {
+            for (j = 0; j < npartition; j++) {
+                p = array_pop(&sp->partition_continuum);
+                array_rewind(p);
+                array_deinit(p);
+            }
+            array_deinit(&sp->partition_continuum);
         }
                         
         array_rewind(&sp->downstreams);

@@ -132,7 +132,7 @@ random_update(struct server_pool *pool)
 
 }
 
-uint32_t
+int
 random_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
     struct continuum *c;
@@ -142,5 +142,5 @@ random_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t 
 
     c = continuum + random() % ncontinuum;
 
-    return c->index;
+    return (int)c->index;
 }

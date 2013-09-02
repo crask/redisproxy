@@ -212,7 +212,7 @@ ketama_update(struct server_pool *pool)
     return NC_OK;
 }
 
-uint32_t
+int
 ketama_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
     struct continuum *begin, *end, *left, *right, *middle;
@@ -236,5 +236,5 @@ ketama_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t 
         right = begin;
     }
 
-    return right->index;
+    return (int)right->index;
 }

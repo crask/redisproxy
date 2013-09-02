@@ -110,6 +110,8 @@ struct server_pool {
     uint32_t           ncontinuum;           /* # continuum points */
     uint32_t           nserver_continuum;    /* # servers - live and dead on continuum (const) */
     struct continuum   *continuum;           /* continuum */
+    uint32_t           npartition_continuum;
+    struct array       partition_continuum;
     uint32_t           nlive_server;         /* # live server */
     int64_t            next_rebuild;         /* next distribution rebuild time in usec */
     struct array       partition;            /* continuum[][] */

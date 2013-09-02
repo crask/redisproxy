@@ -355,6 +355,8 @@ conf_pool_each_transform(void *elem, void *data)
     sp->ncontinuum = 0;
     sp->nserver_continuum = 0;
     sp->continuum = NULL;
+    sp->npartition_continuum = 0;
+    array_null(&sp->partition_continuum);
     sp->nlive_server = 0;
     sp->next_rebuild = 0LL;
     array_null(&sp->partition);
