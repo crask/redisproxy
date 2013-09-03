@@ -160,7 +160,7 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
     ASSERT(right->index < ncontinuum);
 
     /* Search in the layer 2 continuum */
-    p = array_get(&pool->partition, right->index);
+    p = array_get(&pool->partition_continuum, right->index);
 
     nserver = array_n(p);
     if (nserver == 0) {
