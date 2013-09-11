@@ -112,11 +112,11 @@ struct instance;
 #define NC_TICK_INTERVAL (1 * 100) /* in msecs */
 
 struct context {
-    uint32_t           id;          /* unique context id */
-    struct conf        *cf;         /* configuration */
-    struct stats       *stats;      /* stats */
+    uint32_t           id;
+    struct conf        *cf;
+    struct stats       *stats;
 
-    struct array       pool;        /* server_pool[] */
+    struct array       pool;
     struct evbase      *evb;
     int                max_timeout; /* epoll wait max timeout in msec */
     int                timeout;

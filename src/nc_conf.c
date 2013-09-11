@@ -94,6 +94,10 @@ static struct command conf_commands[] = {
       conf_set_num,
       offsetof(struct conf_pool, server_failure_limit) },
 
+    { string("server_failure_interval"),
+      conf_set_num,
+      offsetof(struct conf_pool, server_failure_interval) },
+
     { string("servers"),
       conf_add_server,
       offsetof(struct conf_pool, server) },
@@ -218,6 +222,7 @@ conf_server_each_transform(void *elem, void *data)
 
     s->next_retry = 0LL;
     s->failure_count = 0;
+    s->last_failure = 0LL;
 
     s->range_start = cs->start;
     s->range_end = cs->end;
@@ -260,6 +265,7 @@ conf_pool_init(struct conf_pool *cp, struct string *name)
     cp->server_connections = CONF_UNSET_NUM;
     cp->server_retry_timeout = CONF_UNSET_NUM;
     cp->server_failure_limit = CONF_UNSET_NUM;
+    cp->server_failure_interval = CONF_UNSET_NUM;
     cp->auto_probe_hosts = CONF_UNSET_NUM;
     cp->virtual = CONF_UNSET_NUM;
     cp->auto_warmup = CONF_UNSET_NUM;
@@ -383,6 +389,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->server_connections = (uint32_t)cp->server_connections;
     sp->server_retry_timeout = (int64_t)cp->server_retry_timeout * 1000LL;
     sp->server_failure_limit = (uint32_t)cp->server_failure_limit;
+    sp->server_failure_interval = (int64_t)cp->server_failure_interval;
 
     sp->auto_eject_hosts = cp->auto_eject_hosts ? 1 : 0;
     sp->preconnect = cp->preconnect ? 1 : 0;
@@ -491,6 +498,8 @@ conf_dump(struct conf *cf)
                   cp->server_retry_timeout);
         log_debug(LOG_VVERB, "  server_failure_limit: %d",
                   cp->server_failure_limit);
+        log_debug(LOG_VVERB, "  server_failure_interval: %d",
+                  cp->server_failure_interval);
         log_debug(LOG_VVERB, "  rate: %d", cp->rate);
         log_debug(LOG_VVERB, "  burst: %d", cp->burst);
         log_debug(LOG_VVERB, "  auto_probe_hosts: %d", cp->auto_probe_hosts);
@@ -1427,6 +1436,10 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
 
     if (cp->server_failure_limit == CONF_UNSET_NUM) {
         cp->server_failure_limit = CONF_DEFAULT_SERVER_FAILURE_LIMIT;
+    }
+
+    if (cp->server_failure_interval == CONF_UNSET_NUM) {
+        cp->server_failure_interval = CONF_DEFAULT_SERVER_FAILURE_INTERVAL;
     }
 
     if (cp->auto_probe_hosts == CONF_UNSET_NUM) {

@@ -84,6 +84,7 @@ struct server {
 
     int64_t  next_retry;       /* next retry time in usec */
     uint32_t failure_count;    /* # consecutive failures */
+    int64_t last_failure;      /* last failure time in usec */
 
     int range_start;           /* range start */
     int range_end;             /* range end */
@@ -132,6 +133,7 @@ struct server_pool {
     uint32_t           server_connections;   /* maximum # server connection */
     int64_t            server_retry_timeout; /* server retry timeout in usec */
     uint32_t           server_failure_limit; /* server failure limit */
+    int64_t            server_failure_interval; /* server failure interval */
     unsigned           auto_eject_hosts:1;   /* auto_eject_hosts? */
     unsigned           preconnect:1;         /* preconnect? */
     unsigned           redis:1;              /* redis? */

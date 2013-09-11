@@ -44,24 +44,25 @@
 #define CONF_UNSET_HASH (hash_type_t) -1
 #define CONF_UNSET_DIST (dist_type_t) -1
 
-#define CONF_DEFAULT_HASH                 HASH_FNV1A_64
-#define CONF_DEFAULT_DIST                 DIST_KETAMA
-#define CONF_DEFAULT_TIMEOUT              -1
-#define CONF_DEFAULT_LISTEN_BACKLOG       512
-#define CONF_DEFAULT_CLIENT_CONNECTIONS   0
-#define CONF_DEFAULT_REDIS                false
-#define CONF_DEFAULT_PRECONNECT           false
-#define CONF_DEFAULT_AUTO_EJECT_HOSTS     false
-#define CONF_DEFAULT_SERVER_RETRY_TIMEOUT 30 * 1000 /* in msec */
-#define CONF_DEFAULT_SERVER_FAILURE_LIMIT 2
-#define CONF_DEFAULT_SERVER_CONNECTIONS   1
-#define CONF_DEFAULT_KETAMA_PORT          11211
-#define CONF_DEFAULT_AUTO_PROBE_HOSTS     false
-#define CONF_DEFAULT_SERVER_PROBE_TIMEOUT 10 * 1000 /* in msec */
-#define CONF_DEFAULT_VIRTUAL              false
-#define CONF_DEFAULT_RATE                 0
-#define CONF_DEFAULT_BURST                0
-#define CONF_DEFAULT_AUTO_WARMUP          0
+#define CONF_DEFAULT_HASH                    HASH_FNV1A_64
+#define CONF_DEFAULT_DIST                    DIST_KETAMA
+#define CONF_DEFAULT_TIMEOUT                 -1
+#define CONF_DEFAULT_LISTEN_BACKLOG          512
+#define CONF_DEFAULT_CLIENT_CONNECTIONS      0
+#define CONF_DEFAULT_REDIS                   false
+#define CONF_DEFAULT_PRECONNECT              false
+#define CONF_DEFAULT_AUTO_EJECT_HOSTS        false
+#define CONF_DEFAULT_SERVER_RETRY_TIMEOUT    30 * 1000 /* in msec */
+#define CONF_DEFAULT_SERVER_FAILURE_LIMIT    2
+#define CONF_DEFAULT_SERVER_FAILURE_INTERVAL 100 * 1000 /* in usec */
+#define CONF_DEFAULT_SERVER_CONNECTIONS      1
+#define CONF_DEFAULT_KETAMA_PORT             11211
+#define CONF_DEFAULT_AUTO_PROBE_HOSTS        false
+#define CONF_DEFAULT_SERVER_PROBE_TIMEOUT    10 * 1000 /* in msec */
+#define CONF_DEFAULT_VIRTUAL                 false
+#define CONF_DEFAULT_RATE                    0
+#define CONF_DEFAULT_BURST                   0
+#define CONF_DEFAULT_AUTO_WARMUP             0
 
 struct conf_listen {
     struct string   pname;   /* listen: as "name:port" */
@@ -89,35 +90,36 @@ struct conf_downstream {
 };
 
 struct conf_pool {
-    struct string      name;                 /* pool name (root node) */
-    struct conf_listen listen;               /* listen: */
-    hash_type_t        hash;                 /* hash: */
-    struct string      hash_tag;             /* hash_tag: */
-    dist_type_t        distribution;         /* distribution: */
-    int                timeout;              /* timeout: */
-    int                backlog;              /* backlog: */
-    int                client_connections;   /* client_connections: */
-    int                redis;                /* redis: */
-    int                preconnect;           /* preconnect: */
-    int                auto_eject_hosts;     /* auto_eject_hosts: */
-    int                server_connections;   /* server_connections: */
-    int                server_retry_timeout; /* server_retry_timeout: in msec */
-    int                server_failure_limit; /* server_failure_limit: */
-    struct array       server;               /* servers: conf_server[] */
-    unsigned           valid:1;              /* valid? */
-    struct string      gutter;               /* gutter pool name */
-    struct string      peer;                 /* peer pool name */
-    int                auto_probe_hosts;     /* auto_probe_hosts: */
-    int                virtual;              /* virtual server */
-    struct array       downstreams;          /* downstreams: conf_downstream[] */
-    struct string      namespace;            /* namespace */
+    struct string      name;                    /* pool name (root node) */
+    struct conf_listen listen;                  /* listen: */
+    hash_type_t        hash;                    /* hash: */
+    struct string      hash_tag;                /* hash_tag: */
+    dist_type_t        distribution;            /* distribution: */
+    int                timeout;                 /* timeout: */
+    int                backlog;                 /* backlog: */
+    int                client_connections;      /* client_connections: */
+    int                redis;                   /* redis: */
+    int                preconnect;              /* preconnect: */
+    int                auto_eject_hosts;        /* auto_eject_hosts: */
+    int                server_connections;      /* server_connections: */
+    int                server_retry_timeout;    /* server_retry_timeout: in msec */
+    int                server_failure_limit;    /* server_failure_limit: */
+    int                server_failure_interval; /* server_failure_interval */
+    struct array       server;                  /* servers: conf_server[] */
+    unsigned           valid:1;                 /* valid? */
+    struct string      gutter;                  /* gutter pool name */
+    struct string      peer;                    /* peer pool name */
+    int                auto_probe_hosts;        /* auto_probe_hosts: */
+    int                virtual;                 /* virtual server */
+    struct array       downstreams;             /* downstreams: conf_downstream[] */
+    struct string      namespace;               /* namespace */
     
-    int                rate;                 /* # of requests per second */
-    int                burst;                /* max bursts of requests */
+    int                rate;                    /* # of requests per second */
+    int                burst;                   /* max bursts of requests */
     
-    int                auto_warmup;          /* auto warmup */
+    int                auto_warmup;             /* auto warmup */
 
-    struct string      message_queue;        /* message queue */
+    struct string      message_queue;           /* message queue */
 };
 
 struct conf {

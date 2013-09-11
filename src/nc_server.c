@@ -402,7 +402,17 @@ server_failure(struct context *ctx, struct server *server)
         return;
     }
 
-    server->failure_count++;
+    now = nc_usec_now();
+    if (now < 0) {
+        return;
+    }
+    
+    if ((now - server->last_failure) < pool->server_failure_interval) {
+        server->failure_count++;        
+    } else {
+        server->failure_count = 1;
+    }
+    server->last_failure = now;
 
     log_debug(LOG_VERB, "server '%.*s' failure count %"PRIu32" limit %"PRIu32,
               server->pname.len, server->pname.data, server->failure_count,
@@ -412,10 +422,6 @@ server_failure(struct context *ctx, struct server *server)
         return;
     }
 
-    now = nc_usec_now();
-    if (now < 0) {
-        return;
-    }
     next = now + pool->server_retry_timeout;
 
     log_debug(LOG_INFO, "update pool %"PRIu32" '%.*s' to delete server '%.*s' "
