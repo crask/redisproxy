@@ -641,7 +641,9 @@ _nc_strerror(err_t err)
     case NC_OK:
         return "Ok";
     case NC_ETOOMANYREQUESTS:
-        return "Too many requests";
+        return "Too Many Requests";
+    case NC_ESERVICEUNAVAILABLE:
+        return "Service Unavailable";
     default:
         return "Unkown";
     }

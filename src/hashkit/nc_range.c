@@ -164,7 +164,8 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
 
     nserver = array_n(p);
     if (nserver == 0) {
-        log_warn("no alive server in partition %d", right->index);
+        errno = NC_ESERVICEUNAVAILABLE;
+        log_debug(LOG_VERB, "no alive server in partition %d", right->index);
         return -1;
     }
     

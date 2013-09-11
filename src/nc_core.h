@@ -58,9 +58,9 @@
 #define NC_ERROR    -1
 #define NC_EAGAIN   -2
 #define NC_ENOMEM   -3
-/* Extended errno */
+/* Extended errno, using negtive http status code */
 #define NC_ETOOMANYREQUESTS -429
-
+#define NC_ESERVICEUNAVAILABLE -503
 
 typedef int rstatus_t; /* return type */
 typedef int err_t;     /* error type */
