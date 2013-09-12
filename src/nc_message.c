@@ -203,7 +203,6 @@ _msg_get(void)
         return NULL;
     }
 
-done:
     status = array_init(&msg->keys, DEFAULT_STATS_NUM, sizeof(struct string));
     if (status != NC_OK) {
         return NULL;
@@ -212,6 +211,7 @@ done:
     if (status != NC_OK) {
         return NULL;
     }
+done:
     /* c_tqe, s_tqe, and m_tqe are left uninitialized */
     msg->id = ++msg_id;
     msg->peer = NULL;
