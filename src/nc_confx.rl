@@ -83,6 +83,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         action addr_error {
             log_error("conf: invalid addr");
+            status = NC_ERROR;
         }
 
         action port {
@@ -92,15 +93,20 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         
         action port_error {
             log_error("conf: invalid port");
+            status = NC_ERROR;
         }
         
         action weight {
             weight = weight * 10 + (fc - '0');
-            pnamelen = fpc - pname + 1;
+        }
+        
+        action weight_end {
+            pnamelen = fpc - pname;
         }
                
         action weight_error {
             log_error("conf: invalid weight");
+            status = NC_ERROR;
         }
 
         action name {
@@ -110,8 +116,10 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         action name_enter {
             name = fpc;
         }
+
         action name_error {
             log_error("conf: invalid name");
+            status = NC_ERROR;
         }
 
         action range_start {
@@ -124,11 +132,12 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         action range_error {
             log_error("conf: invalid range");
+            status = NC_ERROR;
         }
 
         action error {
             log_error("conf: invalid server conf");
-            status = CONF_ERROR;
+            status = NC_ERROR;
         }
 
         identifier = [a-zA-Z_][a-zA-Z_0-9\-]*;
@@ -141,7 +150,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         port = (digit @port)* @!port_error;
 
-        weight = (digit @weight)+ @!weight_error;
+        weight = (digit @weight)+ %weight_end @!weight_error;
 
         name = identifier @name >name_enter @!name_error;
                 
@@ -151,8 +160,14 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         range = rstart '-' rend;
 
-        main := ((ip | host | path) ':' port ':' weight (' '+ name)? (' '+ range)? space* ) $!error;
-        
+        basic = (ip | host | path) ':' port ':' weight;
+
+        optional_name = (' '+ name)?;
+
+        optional_range = (' '+ range)?;
+            
+        main := basic optional_name optional_range space* $!error;
+
         write init;
         write exec;
     }%%

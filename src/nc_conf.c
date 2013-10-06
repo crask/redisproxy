@@ -493,7 +493,16 @@ conf_dump(struct conf *cf)
 
             for (j = 0; j < nserver; j++) {
                 s = array_get(&cp->server, j);
-                log_debug(LOG_VVERB, "    %.*s", s->pname.len, s->pname.data);
+                log_debug(LOG_VVERB, "    pname: \"%.*s\" "
+                          "port: %d "
+                          "weight: %d "
+                          "name: \"%.*s\" "
+                          "[%d, %d)", 
+                          s->pname.len, s->pname.data,
+                          s->port,
+                          s->weight,
+                          s->name.len, s->name.data,
+                          s->start, s->end);
             }
         } else {
             ndownstream = array_n(&cp->downstreams);
