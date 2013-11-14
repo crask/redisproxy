@@ -287,6 +287,11 @@ proxy_accept(struct context *ctx, struct conn *p)
              * it back in when some existing connection gets closed
              */
 
+            if (errno == EMFILE || errno == ENFILE) {
+                log_debug(LOG_VERB, "accept on p %d failed - emfile/enfile", p->sd);
+                p->recv_ready = 0;
+                return NC_OK;
+            }
             log_error("accept on p %d failed: %s", p->sd, strerror(errno));
             return NC_ERROR;
         }
