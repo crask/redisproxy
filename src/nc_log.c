@@ -117,8 +117,41 @@ log_loggable(int level)
     return 1;
 }
 
+const char *
+log_level_str(int level)
+{
+    switch (level) {
+    case LOG_ALWAYS:
+        return "ALWAYS";
+    case LOG_EMERG:
+        return "EMERG";
+    case LOG_ALERT:
+        return "ALERT";
+    case LOG_CRIT:
+        return "CRIT";
+    case LOG_WARN:
+        return "WARN";
+    case LOG_NOTICE:
+        return "NOTICE";
+    case LOG_INFO:
+        return "INFO";
+    case LOG_DEBUG:
+        return "DEBUG";
+    case LOG_VERB:
+        return "VERB";
+    case LOG_VVERB:
+        return "VVERB";
+    case LOG_VVVERB:
+        return "VVVERB";
+    case LOG_PVERB:
+        return "PVERB";
+    default:
+        return "";
+    }
+}
+
 void
-_log(const char *file, int line, int panic, const char *fmt, ...)
+_log(int level, const char *file, int line, int panic, const char *fmt, ...)
 {
     struct logger *l = &logger;
     int len, size, errno_save;
@@ -140,8 +173,8 @@ _log(const char *file, int line, int panic, const char *fmt, ...)
     local = localtime(&t);
     timestr = asctime(local);
 
-    len += nc_scnprintf(buf + len, size - len, "[%.*s] %s:%d ",
-                        strlen(timestr) - 1, timestr, file, line);
+    len += nc_scnprintf(buf + len, size - len, "[%s] [%.*s] %s:%d ",
+                        log_level_str(level), strlen(timestr) - 1, timestr, file, line);
 
     va_start(args, fmt);
     len += nc_vscnprintf(buf + len, size - len, fmt, args);
