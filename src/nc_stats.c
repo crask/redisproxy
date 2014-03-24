@@ -21,6 +21,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 
 #include <nc_core.h>
@@ -341,6 +343,7 @@ stats_create_buf(struct stats *st)
     uint32_t key_value_extra = 8;   /* "key": "value", */
     uint32_t pool_extra = 8;        /* '"pool_name": { ' + ' }' */
     uint32_t server_extra = 8;      /* '"server_name": { ' + ' }' */
+    uint32_t used_cpu_max_digits = 6; /* 100.00 */
     size_t size = 0;
     uint32_t i;
 
@@ -366,6 +369,22 @@ stats_create_buf(struct stats *st)
     size += key_value_extra;
 
     size += st->timestamp_str.len;
+    size += int64_max_digits;
+    size += key_value_extra;
+
+    size += st->used_cpu_user_str.len;
+    size += used_cpu_max_digits;
+    size += key_value_extra;
+
+    size += st->used_cpu_sys_str.len;
+    size += used_cpu_max_digits;
+    size += key_value_extra;
+
+    size += st->voluntary_switches_str.len;
+    size += int64_max_digits;
+    size += key_value_extra;
+
+    size += st->involuntary_switches_str.len;
     size += int64_max_digits;
     size += key_value_extra;
 
@@ -478,11 +497,34 @@ stats_add_num(struct stats *st, struct string *key, int64_t val)
 }
 
 static rstatus_t
+stats_add_float(struct stats *st, struct string *key, float val)
+{
+    struct stats_buffer *buf;
+    uint8_t *pos;
+    size_t room;
+    int n;
+
+    buf = &st->buf;
+    pos = buf->data + buf->len;
+    room = buf->size - buf->len - 1;
+
+    n = nc_snprintf(pos, room, "\"%.*s\":%.2f, ", key->len, key->data, val);
+    if (n < 0 || n >= (int)room) {
+        return NC_ERROR;
+    }
+
+    buf->len += (size_t)n;
+
+    return NC_OK;
+}
+
+static rstatus_t
 stats_add_header(struct stats *st)
 {
     rstatus_t status;
     struct stats_buffer *buf;
     int64_t cur_ts, uptime;
+    struct rusage ru;
 
     buf = &st->buf;
     buf->data[0] = '{';
@@ -490,6 +532,8 @@ stats_add_header(struct stats *st)
 
     cur_ts = (int64_t)time(NULL);
     uptime = cur_ts - st->start_ts;
+
+    getrusage(RUSAGE_SELF, &ru);
 
     status = stats_add_string(st, &st->service_str, &st->service);
     if (status != NC_OK) {
@@ -516,6 +560,26 @@ stats_add_header(struct stats *st)
         return status;
     }
 
+    status = stats_add_float(st, &st->used_cpu_user_str, (float)ru.ru_utime.tv_sec + (float)ru.ru_utime.tv_usec/100000);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_float(st, &st->used_cpu_sys_str, (float)ru.ru_stime.tv_sec + (float)ru.ru_stime.tv_usec/1000000);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_num(st, &st->voluntary_switches_str, ru.ru_nvcsw);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_num(st, &st->involuntary_switches_str, ru.ru_nivcsw);
+    if (status != NC_OK) {
+        return status;
+    }
+    
     return NC_OK;
 }
 
@@ -944,6 +1008,11 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
     string_set_text(&st->uptime_str, "uptime");
     string_set_text(&st->timestamp_str, "timestamp");
 
+    string_set_text(&st->used_cpu_user_str, "used_cpu_user");
+    string_set_text(&st->used_cpu_sys_str, "used_cpu_sys");
+    string_set_text(&st->voluntary_switches_str, "voluntary_switches");
+    string_set_text(&st->involuntary_switches_str, "involuntary_swithces");
+    
     st->updated = 0;
     st->aggregate = 0;
 

@@ -107,15 +107,19 @@ struct stats {
 
     struct evbase       *st_evb;
 
-    struct string       service_str;    /* service string */
-    struct string       service;        /* service */
-    struct string       source_str;     /* source string */
-    struct string       source;         /* source */
-    struct string       version_str;    /* version string */
-    struct string       version;        /* version */
-    struct string       uptime_str;     /* uptime string */
-    struct string       timestamp_str;  /* timestamp string */
-
+    struct string       service_str;              /* service string */
+    struct string       service;                  /* service */
+    struct string       source_str;               /* source string */
+    struct string       source;                   /* source */
+    struct string       version_str;              /* version string */
+    struct string       version;                  /* version */
+    struct string       uptime_str;               /* uptime string */
+    struct string       timestamp_str;            /* timestamp string */
+    struct string       used_cpu_user_str;        /* used cpu user string */
+    struct string       used_cpu_sys_str;         /* used cpu sys string */
+    struct string       voluntary_switches_str;   /* voluntary switches string */
+    struct string       involuntary_switches_str; /* involuntary switches */
+    
     volatile int        aggregate;      /* shadow (b) aggregate? */
     volatile int        updated;        /* current (a) updated? */
 };
