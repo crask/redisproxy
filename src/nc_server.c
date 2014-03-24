@@ -471,6 +471,7 @@ server_close_stats(struct context *ctx, struct server *server, err_t err,
         stats_server_incr(ctx, server, server_err);
         break;
     }
+    log_warn("close server '%.*s': %s", server->pname.len, server->pname.data, nc_strerror(err));
 }
 
 void
