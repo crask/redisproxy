@@ -41,6 +41,7 @@ struct logger {
 
 #define LOG_MAX_LEN 256 /* max length of log message */
 
+#define LOG_MAX_NAME_LEN 256 /* max length of log file name */
 /*
  * log_stderr   - log to stderr
  * loga         - log always

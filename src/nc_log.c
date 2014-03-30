@@ -59,19 +59,46 @@ log_deinit(void)
     close(l->fd);
 }
 
+static void
+log_rotate_name(char *buf, size_t len, const char *old)
+{
+    struct tm *local;
+    time_t t;
+
+    t = time(NULL);
+    local = localtime(&t);
+    snprintf(buf, len, "%s.%d-%d-%dT%d-%d-%d",
+             old,
+             1900+local->tm_year, 1+local->tm_mon, local->tm_mday,
+             local->tm_hour, local->tm_min, local->tm_sec);
+}
+
 void
 log_reopen(void)
 {
     struct logger *l = &logger;
+    char buf[LOG_MAX_NAME_LEN];
 
-    if (l->fd != STDERR_FILENO) {
-        close(l->fd);
-        l->fd = open(l->name, O_WRONLY | O_APPEND | O_CREAT, 0644);
-        if (l->fd < 0) {
-            log_stderr("reopening log file '%s' failed, ignored: %s", l->name,
-                       strerror(errno));
-        }
+    if (l->fd == STDERR_FILENO) {
+        return;
     }
+
+    log_rotate_name(buf, sizeof(buf), l->name);
+    
+    if (rename(l->name, buf) != 0) {
+        log_stderr("renaming log file '%s' failed, ignored: %s", l->name,
+                   strerror(errno));
+        return;
+    }
+    
+    close(l->fd);
+    
+    l->fd = open(l->name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+    if (l->fd < 0) {
+        log_stderr("reopening log file '%s' failed, ignored: %s", l->name,
+                   strerror(errno));
+    }
+
 }
 
 void
