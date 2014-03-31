@@ -67,10 +67,8 @@ log_rotate_name(char *buf, size_t len, const char *old)
 
     t = time(NULL);
     local = localtime(&t);
-    snprintf(buf, len, "%s.%d-%d-%dT%d-%d-%d",
-             old,
-             1900+local->tm_year, 1+local->tm_mon, local->tm_mday,
-             local->tm_hour, local->tm_min, local->tm_sec);
+    snprintf(buf, len, "%s.%d%02d%02d%02d", old,
+             1900+local->tm_year, 1+local->tm_mon, local->tm_mday, local->tm_hour);
 }
 
 void
