@@ -221,6 +221,13 @@ nc_show_usage(void)
         NC_MBUF_SIZE);
 }
 
+static void
+nc_show_version()
+{
+    log_stderr("This is nutcracker-%s sha=%s:%d" CRLF, 
+               NC_VERSION_STRING, NC_GIT_SHA1, strtol(NC_GIT_DIRTY, NULL, 10) > 0);    
+}
+
 static rstatus_t
 nc_create_pidfile(struct instance *nci)
 {
@@ -308,7 +315,6 @@ nc_get_options(int argc, char **argv, struct instance *nci)
 
         switch (c) {
         case 'h':
-            show_version = 1;
             show_help = 1;
             break;
 
@@ -326,7 +332,6 @@ nc_get_options(int argc, char **argv, struct instance *nci)
 
         case 'D':
             describe_stats = 1;
-            show_version = 1;
             break;
 
         case 'v':
@@ -541,16 +546,17 @@ main(int argc, char **argv)
     }
 
     if (show_version) {
-        log_stderr("This is nutcracker-%s sha=%s:%d" CRLF, 
-                   NC_VERSION_STRING, NC_GIT_SHA1, strtol(NC_GIT_DIRTY, NULL, 10) > 0);
-        if (show_help) {
-            nc_show_usage();
-        }
+        nc_show_version();
+        exit(0);
+    }
 
-        if (describe_stats) {
-            stats_describe();
-        }
+    if (show_help) {
+        nc_show_usage();
+        exit(0);
+    }
 
+    if (describe_stats) {
+        stats_describe();
         exit(0);
     }
 
