@@ -1377,8 +1377,7 @@ conf_validate_pool(struct conf *cf, struct conf_pool *cp)
     ASSERT(!string_empty(&cp->name));
 
     if (!cp->listen.valid) {
-        log_error("conf: directive \"listen:\" is missing");
-        return NC_ERROR;
+        log_warn("conf: directive \"listen:\" is missing");
     }
 
     /* set default values for unset directives */

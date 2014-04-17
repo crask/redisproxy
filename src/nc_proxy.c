@@ -188,6 +188,10 @@ proxy_each_init(void *elem, void *data)
     struct server_pool *pool = elem;
     struct conn *p;
 
+    if (pool->port == 0) {
+        return NC_OK;
+    }
+    
     p = conn_get_proxy(pool);
     if (p == NULL) {
         return NC_ENOMEM;
