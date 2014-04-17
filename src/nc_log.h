@@ -64,7 +64,7 @@ struct logger {
 #define log_hexdump(_level, _data, _datalen, ...) do {                      \
     if (log_loggable(_level) != 0) {                                        \
         _log(_level, __FILE__, __LINE__, 0, __VA_ARGS__);                \
-        _log_hexdump(_level, __FILE__, __LINE__, (char *)(_data), (int)(_datalen), \
+        _log_hexdump(__FILE__, __LINE__, (char *)(_data), (int)(_datalen), \
                      __VA_ARGS__);                                          \
     }                                                                       \
 } while (0)
@@ -86,7 +86,7 @@ struct logger {
 
 #define loga_hexdump(_data, _datalen, ...) do {                  \
     _log(LOG_ALWAYS, __FILE__, __LINE__, 0, __VA_ARGS__);                \
-    _log_hexdump(LOG_ALWAYS, __FILE__, __LINE__, (char *)(_data), (int)(_datalen), \
+    _log_hexdump(__FILE__, __LINE__, (char *)(_data), (int)(_datalen), \
                  __VA_ARGS__);                                              \
 } while (0)                                                                 \
 
