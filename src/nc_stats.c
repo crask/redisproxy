@@ -590,16 +590,29 @@ stats_add_footer(struct stats *st)
     uint8_t *pos;
 
     buf = &st->buf;
+    pos = buf->data + buf->len;
 
-    if (buf->len == buf->size) {
-        return NC_ERROR;
+    pos -= 2; /* go back by 2 bytes */
+
+    switch (pos[0]) {
+    case ',':
+        ASSERT(pos[1] == ' ');
+        pos[0] = '}';
+        pos[1] = '\n';
+        break;
+
+    case '}':
+        if (buf->len == buf->size) {
+            return NC_ERROR;
+        }
+        /* overwrite the last byte and add a new byte */
+        ASSERT(pos[1] == ',');
+        pos[1] = '}';
+        pos[2] = '\n';
+        buf->len += 1;
+    default:
+        NOT_REACHED();
     }
-
-    /* overwrite the last byte and add a new byte */
-    pos = buf->data + buf->len - 1;
-    pos[0] = '}';
-    pos[1] = '\n';
-    buf->len += 1;
 
     return NC_OK;
 }

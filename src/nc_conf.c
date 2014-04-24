@@ -992,6 +992,11 @@ conf_validate_document(struct conf *cf)
 
     conf_yaml_deinit(cf);
 
+    if (count == 0) {
+        log_warn("conf: '%s' is empty", cf->fname);
+        return NC_EEMPTYCONF;
+    }
+    
     if (count != 1) {
         log_error("conf: '%s' must contain only 1 document; found %"PRIu32" "
                   "documents", cf->fname, count);
@@ -1540,6 +1545,9 @@ conf_create(char *filename)
     /* validate configuration file before parsing */
     status = conf_pre_validate(cf);
     if (status != NC_OK) {
+        if (status == NC_EEMPTYCONF) {
+            goto done;
+        }
         goto error;
     }
 
@@ -1555,6 +1563,7 @@ conf_create(char *filename)
         goto error;
     }
 
+done:
     conf_dump(cf);
 
     fclose(cf->fh);

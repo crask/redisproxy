@@ -58,6 +58,7 @@
 #define NC_ERROR    -1
 #define NC_EAGAIN   -2
 #define NC_ENOMEM   -3
+#define NC_EEMPTYCONF -4       /* error emtpy conf */
 /* Extended errno, using negtive http status code */
 #define NC_ETOOMANYREQUESTS -429
 #define NC_ESERVICEUNAVAILABLE -503
