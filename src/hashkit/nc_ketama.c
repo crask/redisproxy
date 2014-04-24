@@ -154,7 +154,9 @@ ketama_update(struct server_pool *pool)
 
         server = array_get(&pool->server, server_index);
 
-        if (pool->auto_eject_hosts && server->next_retry > now) {
+        if (pool->auto_eject_hosts &&
+            pool->gutter == NULL &&
+            server->next_retry > now) {
             continue;
         }
 
@@ -216,6 +218,8 @@ int
 ketama_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
     struct continuum *begin, *end, *left, *right, *middle;
+    uint32_t index;
+    struct server *server;
 
     ASSERT(continuum != NULL);
     ASSERT(ncontinuum != 0);
@@ -236,5 +240,16 @@ ketama_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t 
         right = begin;
     }
 
-    return (int)right->index;
+    index = right->index;
+    server = array_get(&pool->server, index);
+
+    if (server->next_retry > 0) {
+        errno = NC_ESERVICEUNAVAILABLE;
+        log_debug(LOG_VERB, "server '%.*s' is ejected", server->pname.len, server->pname.data);
+        return -1;
+    }
+
+   log_debug(LOG_VVERB, "dispatch hash %"PRIu32" to index %"PRIu32,
+              hash, index);
+   return (int)index;
 }
