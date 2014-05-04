@@ -1495,6 +1495,10 @@ conf_post_validate(struct conf *cf)
         p1 = array_get(&cf->pool, i);
         p2 = array_get(&cf->pool, i + 1);
 
+        if (string_empty(&p1->listen.pname) || string_empty(&p2->listen.pname)) {
+            continue;
+        }
+        
         if (string_compare(&p1->listen.pname, &p2->listen.pname) == 0) {
             log_error("conf: pools '%.*s' and '%.*s' have the same listen "
                       "address '%.*s'", p1->name.len, p1->name.data,
