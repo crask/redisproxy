@@ -61,8 +61,8 @@ done
 
 cd .git/svn
 
-for file in "${include_files}"; do
-    svn add --force $file
-done
+svn add --force .
 
-echo "${commit_message}" > commit_message
+svn ci --non-interactive --truct-server-cert \
+    --username "${username}" --password "${password}" \
+    -m "${commit_message}"
