@@ -53,7 +53,9 @@ commit_message="$(git log --oneline HEAD -n 1)"
 svn co --non-interactive --trust-server-cert \
     --username "${username}" --password "${password}" "${svn_repo}" .git/svn
 
-git ls-files | xargs -I {} rsync -R {} .git/svn
+for file in "$(git ls-files)"; do
+    rsync -R "${file}" .git/svn
+done
 
 for file in "${include_files}"; do
     rsync -R $file .git/svn
