@@ -63,6 +63,6 @@ cd .git/svn
 
 svn add --force .
 
-svn ci --non-interactive --truct-server-cert \
+svn ci --non-interactive --trust-server-cert \
     --username "${username}" --password "${password}" \
     -m "${commit_message}"
