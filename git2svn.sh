@@ -5,7 +5,9 @@ err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
 }
 
+# we only sync master branch when built from gitlab-ci
 if [[ "${CI_BUILD_REF_NAME}" != "master" ]]; then
+    echo "Skip branch ${CI_BUILD_REF_NAME}"
     exit 0
 fi
 
@@ -48,7 +50,8 @@ fi
 
 commit_message="$(git log --oneline HEAD -n 1)"
 
-svn co --username "${username}" --password "${password}" "${svn_repo}" .git/svn
+svn co --non-interactive --trust-server-cert \
+    --username "${username}" --password "${password}" "${svn_repo}" .git/svn
 
 git ls-files | xargs -I{} rsync -R {} .git/svn
 
