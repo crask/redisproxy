@@ -34,6 +34,7 @@ core_ctx_create(struct instance *nci)
     rstatus_t status;
     struct context *ctx;
     int64_t now;
+    uint32_t npool;
 
     ctx = nc_alloc(sizeof(*ctx));
     if (ctx == NULL) {
@@ -62,22 +63,28 @@ core_ctx_create(struct instance *nci)
         return NULL;
     }
 
+    npool = array_n(&ctx->cf->pool);
+    
     /* initialize server pool from configuration */
-    status = server_pool_init(&ctx->pool, &ctx->cf->pool, ctx);
-    if (status != NC_OK) {
-        conf_destroy(ctx->cf);
-        nc_free(ctx);
-        return NULL;
+    if (npool != 0) {
+        status = server_pool_init(&ctx->pool, &ctx->cf->pool, ctx);
+        if (status != NC_OK) {
+            conf_destroy(ctx->cf);
+            nc_free(ctx);
+            return NULL;
+        }
     }
 
     /* create stats per server pool */
-    ctx->stats = stats_create(nci->stats_port, nci->stats_addr, nci->stats_interval,
-                              nci->hostname, &ctx->pool);
-    if (ctx->stats == NULL) {
-        server_pool_deinit(&ctx->pool);
-        conf_destroy(ctx->cf);
-        nc_free(ctx);
-        return NULL;
+    if (npool != 0) {
+        ctx->stats = stats_create(nci->stats_port, nci->stats_addr, nci->stats_interval,
+                                  nci->hostname, &ctx->pool);
+        if (ctx->stats == NULL) {
+            server_pool_deinit(&ctx->pool);
+            conf_destroy(ctx->cf);
+            nc_free(ctx);
+            return NULL;
+        }
     }
 
     /* initialize event handling for client, proxy and server */
@@ -91,27 +98,31 @@ core_ctx_create(struct instance *nci)
     }
 
     /* preconnect? servers in server pool */
-    status = server_pool_preconnect(ctx);
-    if (status != NC_OK) {
-        server_pool_disconnect(ctx);
-        evbase_destroy(ctx->evb);
-        stats_destroy(ctx->stats);
-        server_pool_deinit(&ctx->pool);
-        conf_destroy(ctx->cf);
-        nc_free(ctx);
-        return NULL;
+    if (npool != 0) {
+        status = server_pool_preconnect(ctx);
+        if (status != NC_OK) {
+            server_pool_disconnect(ctx);
+            evbase_destroy(ctx->evb);
+            stats_destroy(ctx->stats);
+            server_pool_deinit(&ctx->pool);
+            conf_destroy(ctx->cf);
+            nc_free(ctx);
+            return NULL;
+        }
     }
 
     /* initialize proxy per server pool */
-    status = proxy_init(ctx);
-    if (status != NC_OK) {
-        server_pool_disconnect(ctx);
-        evbase_destroy(ctx->evb);
-        stats_destroy(ctx->stats);
-        server_pool_deinit(&ctx->pool);
-        conf_destroy(ctx->cf);
-        nc_free(ctx);
-        return NULL;
+    if (npool != 0) {
+        status = proxy_init(ctx);
+        if (status != NC_OK) {
+            server_pool_disconnect(ctx);
+            evbase_destroy(ctx->evb);
+            stats_destroy(ctx->stats);
+            server_pool_deinit(&ctx->pool);
+            conf_destroy(ctx->cf);
+            nc_free(ctx);
+            return NULL;
+        }
     }
 
     log_debug(LOG_VVERB, "created ctx %p id %"PRIu32"", ctx, ctx->id);
