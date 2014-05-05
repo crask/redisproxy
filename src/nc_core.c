@@ -339,6 +339,13 @@ core_core(void *arg, uint32_t events)
 static void
 core_tick(struct context *ctx)
 {
+    uint32_t npool;
+    npool = array_n(&ctx->pool);
+
+    if (npool == 0) {
+        return;
+    }
+    
     server_pool_update_quota(ctx);
 
     server_pool_probe(ctx);
