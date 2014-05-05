@@ -1081,6 +1081,10 @@ stats_swap(struct stats *st)
         return;
     }
 
+    if (st == NULL) {
+        return;
+    }
+
     if (st->aggregate == 1) {
         log_debug(LOG_PVERB, "skip swap of current %p shadow %p as aggregator "
                   "is busy", st->current.elem, st->shadow.elem);
