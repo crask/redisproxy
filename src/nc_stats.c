@@ -610,6 +610,7 @@ stats_add_footer(struct stats *st)
         pos[1] = '}';
         pos[2] = '\n';
         buf->len += 1;
+		break;
     default:
         NOT_REACHED();
     }
