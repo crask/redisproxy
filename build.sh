@@ -1,3 +1,3 @@
 rm -rf output
-mkdir -p output
-cp -R * output/ || true
+mkdir -p output/src
+cp src/nutcracker output/src || true
