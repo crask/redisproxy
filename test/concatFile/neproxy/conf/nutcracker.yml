@@ -1,0 +1,29 @@
+alpha:
+  listen: 0.0.0.0:{NEPROXY_PORT}
+  hash: fnv1a_32
+  distribution: ketama
+  preconnect: true
+  timeout: 20
+  auto_eject_hosts: false
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  auto_probe_hosts: false
+  namespace: alphans
+  auto_warmup: false
+  rate: 100000
+  burst: 200000
+  message_queue: mcq
+  servers:
+   - 127.0.0.1:{CACHE_PORT}:1 server1
+
+mcq:
+  listen: 0.0.0.0:{NEPROXY_MCQ_PORT}
+  distribution: random
+  preconnect: true
+  timeout: 50
+  redis: true
+  auto_eject_hosts: true
+  server_failure_limit: 3
+  server_retry_timeout: 2000
+  servers:
+    - 127.0.0.1:{REDIS_PORT}:1 server2

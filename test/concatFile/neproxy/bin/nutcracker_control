@@ -1,0 +1,455 @@
+#! /bin/bash  
+#=================================================================
+# 模块控制脚本
+#	 USAGE:  sh $0 [start|stop|restart] [|all|modulenames]
+#        AUTHOR:  caofeifei@baidu.com (Nsop)
+#       COMPANY:  Baidu.com
+#       VERSION:  0.0.1
+#       CREATED:  2009-07-17
+#       UPDATED:  2009-12-30
+#==================================================================
+
+version="0.0.1"
+build_time="2009-07-17"
+
+script_path="$(cd $(dirname "$0"); pwd -P)"
+script_name="$(basename $0)"
+program_name=$(echo "${script_name}" | sed 's/\([[:alnum:]]\+\)_control$/\1/')
+[[ ! -f "$script_path" ]] && module_dir="$(dirname $script_path)" #模块路径名
+function check_limit(){
+	user="$(echo $USER)"
+	suser=$(ls -l ${script_path}/${script_name} | awk '{print $3}'|head -n 1)
+	if [  "$user" != "$suser" ] && [ "$user" != "root" ]
+	then
+		echo "$user can't execute ${script_name}"; exit
+	fi	
+	echo "$module_dir" |grep -q "${program_name}\>"
+	#if [ $? -ne 0 ];then 
+	#	echo "ERROR:$script_name path is ${script_path}!"
+	#	exit
+	#fi
+}
+
+check_limit
+source ${module_dir}/conf/control.conf
+# 全局变量定义
+PRO_PID=""  # module process pid
+SUP_PID=""  # module process ppid--->supervise pid
+TOP_PPID="" # 采用TOP路径方式获取模块父进程pid--->supervise pid
+LOG_DIR="$module_dir/" #日志目录路径
+STATUS_DIR="${module_dir}/status" ##配置模块status目录 
+SUPERVISE_DIR="" #supervise 程序路径名
+
+if [ "$SUPER_DIR_FLAG" -eq 1 ]
+then
+	SUPERVISE_DIR="$SUPERVISE_NAME"
+else
+	SUPERVISE_DIR="${module_dir}/$SUPERVISE_NAME"
+fi
+
+function print_version() {
+cat <<-print_version
+        ${script_name} ${version}
+        Copyright Baidu Inc.
+print_version
+}
+
+function usage() {
+
+cat <<-usage
+        Usage: ${script_name} [start|stop|restart|health|reload] [|all|modulename] [log]
+usage
+}
+
+############################## get module process pid
+function get_pid(){
+        local module status_file
+        module="$1"
+        status_file="${module_dir}/status/${module}/status"
+        if [ -f "$status_file" ];then
+                PRO_PID=`od -d --skip-bytes=${SUPER_CHAR} $status_file |awk '{print $2}'`
+        fi
+}
+
+###################################### get module process ppid.
+function get_ppid(){
+	local mpid
+	mpid="$1"
+	SUP_PID=$(grep 'PPid' /proc/$mpid/status |awk '{print $2}')
+}
+
+#############################################get module process ppid; 利用模块启停时status路径获取ppid
+function get_top_pid(){ 
+	local module top_path
+	module="$1"  
+	top_path="${STATUS_DIR}/${module}\>"
+	TOP_PPID=`ps axo pid,cmd|grep "${SUPERVISE_DIR}\>" |grep "$top_path" |awk '{print $1}'`
+}
+
+##################################
+#功能:判断当前用户是否有权限对模块进行启停操作
+###################################
+function check_pro_limit(){
+	local flag module pro_dir super_dir user pro_user
+	module="$1"
+	dir="$2"
+        super_dir="${STATUS_DIR}/${module}"		
+	pro_dir="$dir/${module}"
+	user="$(echo $USER)"
+	pro_user=$(ps auxw |grep "${super_dir}\>" |awk '{print $1}' |head -n 1)
+	if [ -z "$pro_user" ];then	
+		pro_user=$(ps auxw |grep "${pro_dir}\>" |awk '{print $1}' |head -n 1)
+	fi
+	if [  "$pro_user" != "$user"  ] && [ "$user" != "root" ]
+	then
+		return 1 
+	else
+		return 0
+	fi
+	
+}
+############################################
+#功能：检查模块端口是否启动
+#实现：检查方法：netstat 检查模块端口是否存在.
+#接口: check_port 模块名 模块端口.
+#############################################
+function check_port(){
+	local proc_name proc_port port_name 
+        if [ $# -eq 2  ];then
+                proc_name="$1"
+                port="$2"
+		ports=$(netstat -ntl 2>/dev/null | awk -F'[ :]+' '/LISTEN/{print $5}')
+		for port_i in $ports
+                do
+			! [[ $port_i =~ ^[0-9]+$ ]] &&  continue 
+                        [[ "$port" = "$port_i" ]] && return 0 
+                done
+        fi
+	return 1
+}
+######################################################################### 
+#功能：检查模块主进程是否存在
+#实现：检查方法：获取模块进程pid,利用ps获取所有进程pid列表，检查pid是否在列表中.
+#接口: check_pid 模块进程名 
+#########################################################################
+function check_pid(){
+	local module status_file pid_list
+	module="$1"
+	pid_flag=1
+	get_pid $module	
+	pid_list=(`ps axo pid,cmd |grep ${module} |awk '{print $1}'`)
+	if [ "$PRO_PID" ]
+	then
+		for PID in ${pid_list[@]}
+	        do
+	        	if [ "$PRO_PID" -eq "$PID" ]
+	        	then
+	               		pid_flag=0
+	                	break
+	        	fi
+	        done
+	fi
+	return $pid_flag
+}
+########################################## 清除status目录下管道文件
+function mv_satus_lock(){
+	local lock_dir
+	lock_dir="$1"
+	if [ -d "$lock_dir" ]
+        then
+               cd "$lock_dir/" && rm -f svcontrol lock  2>/dev/null
+        fi
+}
+############################封装tail -f 
+function optail(){
+	local modulelog
+        modulelog="$1"
+        trap : SIGINT
+        tail -F $modulelog
+        trap - SIGINT
+}
+########################################check wf log
+function check_log(){
+	local mod_name log_name
+	log_name="$1"
+	if [ -f "${LOG_DIR}/${log_name}" ]
+	then
+		optail "${LOG_DIR}/${log_name}"
+		return 0	
+	else
+		echo "no ${LOG_DIR}/${log_name} file"
+		return 1
+	fi
+}
+#############################################################################
+# 启停脚本功能函数_start
+#############################################################################
+function mstart(){
+ 	local mod_name modnum flag  heal_flag pot_flag module_conf limit_dir	
+	modnum="$1"
+	mname="MOD_NAME$modnum"
+	cname="MOD_START_CONF$modnum"
+	ldir="MOD_LIMIT_DIR$modnum"
+	bindir="MOD_BIN_DIR$modnum"
+
+        mod_name="${!mname}"
+	module_conf="${!cname}"
+	limit_dir="${!ldir}"
+	bin_dir="${!bindir}"
+	get_top_pid "$mod_name" # 获取top 路径下，模块进程ppid.
+	if [ ! -z "$TOP_PPID" ];then
+		echo "${STATUS_DIR}/${mod_name} supervise is running!"
+		return $ERROR
+	fi
+	[ ! -d "${STATUS_DIR}/${mod_name}" ] && mkdir -p "${STATUS_DIR}/${mod_name}" 2>/dev/null
+	cd "$module_dir"
+	if [ -e "${SUPERVISE_DIR}" ] 
+	then
+		[[ ! -e "${bin_dir}/${mod_name}" ]] &&  echo "${bin_dir}/${mod_name} doesn't exist" 
+		exec 0</dev/null
+                ${SUPERVISE_DIR} ${STATUS_DIR}/${mod_name} nohup ${limit_dir} ${bin_dir}/${mod_name} $PARAMS ${module_conf}>/dev/null 2>&1 &
+		return $OK
+	else
+		echo "${SUPERVISE_DIR} doesn't exist"
+	fi
+	return $ERROR
+}
+#############################################################################
+# 启停脚本功能函数_stop
+#############################################################################
+function mstop(){
+	local mnum flag pidlist k_flag limit_flag mod_status
+	modnum="$1"
+        mname="MOD_NAME$modnum"
+        bindir="MOD_BIN_DIR$modnum"
+	kflag="KILL_FLAG$modnum"
+	kpname="KILL_PRO_NAME$modnum"
+
+        mod_name="${!mname}"
+        bin_dir="${!bindir}"
+	k_flag="${!kflag}"
+	pname="${!kpname}"
+	mod_status="${STATUS_DIR}/${mod_name}"
+	check_pro_limit "$mod_name" "$bin_dir";limit_flag=$?
+	if [ "$limit_flag" -eq 1 ];then
+		echo "stop $mod_name Permission denied!";return $ERROR
+	fi 
+	get_top_pid "$mod_name"   # 获取top 路径下，模块进程ppid.
+	get_pid "$mod_name"   # 获取模块进程pid.
+	if [ ! -z "$PRO_PID" ]
+	then
+		if [ -f "/proc/$PRO_PID/status" ];then
+			get_ppid $PRO_PID                       
+		fi
+	else
+		echo "can't get $mod_name pid!"
+		return $ERROR	
+	fi
+	if [ -z "$SUP_PID" ] || [ "$SUP_PID" = "1" ]   
+	then
+	
+		if [ "$k_flag" = "1" ]
+		then
+			if [ ! -z "$TOP_PPID" ] && [ "$TOP_PPID" != "1" ]
+			then
+				kill -9 $TOP_PPID 2>/dev/null
+				[[ "$pname" ]] && killall -9 $pname 2>/dev/null
+				[[ $? = 0  ]] && flag="$OK"
+			else
+				[[ "$pname" ]] && killall -9 $pname 2>/dev/null
+				[[ $? = 0  ]] && flag="$OK"
+			fi
+			
+		else
+			kill -9 $PRO_PID 2>/dev/null
+                        [[ $? = 0  ]] && flag="$OK"
+		fi
+	else
+		if [ "$k_flag" = "0" ] 
+		then
+                	kill -9 $SUP_PID 2>/dev/null
+			kill -9 $TOP_PPID 2>/dev/null
+                	kill -9 $PRO_PID 2>/dev/null
+			[[ $? = 0  ]] && flag="$OK"
+		elif [ "$k_flag" = "1" ]
+		then
+			kill -9 $SUP_PID 2>/dev/null
+			kill -9 $TOP_PPID 2>/dev/null
+                        [[ "$pname" ]] && killall -9 $pname 2>/dev/null 
+			[[ $? = 0  ]] && flag="$OK"
+		fi
+	fi
+	[[ $flag = "$OK" ]] && mv_satus_lock "$mod_status"	
+	return $flag
+}
+#############################################################################
+# 启停脚本功能函数_restart
+#############################################################################
+function mrestart(){
+	local mnum flag pidlist k_flag pname bin_dir sup_ppid limit_flag statusfile
+	modnum="$1"
+        mname="MOD_NAME$modnum"
+        bindir="MOD_BIN_DIR$modnum"
+	kflag="KILL_FLAG$modnum"
+        kpname="KILL_PRO_NAME$modnum"
+
+        mod_name="${!mname}"
+        bin_dir="${!bindir}"
+	k_flag="${!kflag}"
+	pname="${!kpname}"
+	statusfile="${STATUS_DIR}/${mod_name}/status"
+	check_pro_limit  "$mod_name" "$bin_dir";limit_flag=$?
+        if [ $limit_flag -eq 1 ];then
+                echo "restart $mod_name Permission denied!"
+                return $ERROR #ERROR
+        fi
+	#################################### get module porcess pid
+ 	get_pid "$mod_name"
+	if [ ! -z "$PRO_PID" ] && [ -f "/proc/$PRO_PID/status" ] ######### get ppid
+        then
+		get_ppid $PRO_PID
+	else
+		echo "Please check "${module_dir}/${bin_dir}/${mod_name}" is not running!"
+        fi
+	if [  -z "$SUP_PID" ] || [ "$SUP_PID" -eq 1 ] 
+	then
+                echo "$mod_name no supervise process!"
+	else 
+		if [ "$k_flag" = "0" ]
+		then
+			kill -9 $PRO_PID 2>/dev/null 
+			[[ $? = "0" ]] && return $OK
+		elif [ "$k_flag" = "1" ]
+		then
+			killall -9 "$pname" 2>/dev/null
+			[[ $? = "0" ]] && return $OK
+		fi
+	fi	
+	return $ERROR
+}
+################################ reload 接口函数
+function mreload(){
+	local modunm
+}
+#################################health 接口函数
+function check_health(){
+        local modunm
+        #检查进程 
+        #检查端口
+}
+########################################总接口函数，调用功能函数:restart stop start。  
+function process(){
+	local comm mod mode_command module port mlog
+	comm="$1"
+	mod="$2"
+	mode_command="$3"
+	
+	if [ $mod = "all" ]
+        then
+                for ((i=0; i<"$MODULE_NUM"; i++))
+                do
+			mname="MOD_NAME$i"
+         	        mplog="MOD_WFLOG$i"
+         	        module="${!mname}"
+         	        mlog="${!mplog}"
+                       	$comm "$i"; tflag=$?
+			if [ "$tflag" -eq "$OK" ]
+                        then
+                                echo "${module} ${command_input} done!"
+			else
+				echo "${module} ${command_input} faild!"
+                        fi
+			if [ "$mode_command" ] && [ "$mode_command" = "log" ]
+                        then
+                               check_log "$mlog" ;logflag=$?
+                        fi
+                done
+        else
+		for ((i=0; i<"$MODULE_NUM"; i++))
+                do
+                        mname="MOD_NAME$i"
+                        mplog="MOD_WFLOG$i"
+                        module="${!mname}"
+                        mlog="${!mplog}"
+			if [ "$module" = "$mod" ]
+			then
+                                $comm "$i"; tflag=$?
+				if [ "$tflag" -eq "$OK" ]
+                      		then
+                      		        echo "${module} ${command_input}  done!"
+                      		else
+                      		        echo "${module} ${command_input} faild!"
+                      		fi
+		                if [ "$mode_command" ] && [ "$mode_command" = "log" ]
+                                then
+                                        check_log "$mlog"  ;logflag=$?
+                                fi
+				break
+			else
+				let num=num+1
+			fi
+			
+                done
+		if   [ "$num" = "$MODULE_NUM" ]
+		then
+			echo "module name($mod) is error!"
+		fi
+        fi
+	return $tflag
+}
+
+##############################################
+command_input=$1
+if [ $# -eq 1 ]
+then
+        mod="all"
+elif [ $# -eq 2 ]
+then
+        mod="$2"
+elif [ $# -eq 3 ]
+then
+        mod="$2"
+        methd="$3"
+else
+        usage
+        exit 1
+fi
+## 根据不同的参数选择不同的接口行为
+case X"${command_input}" in
+    Xstart)
+#        	ulimit -c unlimited
+		process mstart "$mod" "$methd" ;c_flag=$?
+        ;;
+    Xstop)
+                process mstop "$mod" "$methd" ;c_flag=$?
+        ;;
+    Xrestart)
+		process mrestart "$mod" "$methd"; c_flag=$? 
+        ;;
+    Xreload)
+       	        echo "$command_input 只有接口函数" 
+        ;;
+    Xhealth)
+		echo " ${command_input} 只有接口函数" 
+        	#process health "$mod" "$methd"
+        ;;
+    Xcleanup)
+        	echo "${program_name} ${command_input}." 
+        ;;
+    Xcheck)
+        	echo "${program_name} ${command_input}." 
+        ;;
+    Xhelp)
+        usage
+        ;;
+    Xversion)
+        print_version
+        ;;
+    *)
+        usage
+        exit 1
+        ;; 
+esac
+
+exit $c_flag
+
