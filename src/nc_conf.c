@@ -486,7 +486,7 @@ conf_dump(struct conf *cf)
                   cp->message_queue.data);
         
         if (!cp->virtual) {
-            log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace.len, cp->namespace);
+            log_debug(LOG_VVERB, "  namespace: \"%.*s\"", cp->namespace.len, cp->namespace.data);
 
             nserver = array_n(&cp->server);
             log_debug(LOG_VVERB, "  servers: %"PRIu32"", nserver);
