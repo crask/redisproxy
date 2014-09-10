@@ -1697,7 +1697,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
     struct conn *conn;
     struct mbuf *src, *dst;
     int n;
-    uint32_t remain, length, msize;
+    uint32_t remain, length, msize, mlen;
     uint8_t *pos;
     
     ASSERT(rsp->key_start && rsp->key_end);
@@ -1727,6 +1727,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
                      rsp->vlen);
     dst->last += n;
     ASSERT(dst->last <= dst->end);
+	mlen = n;
     
     remain = rsp->vlen + 2;     /* <data block>\r\n */
     STAILQ_FOREACH(src, &rsp->mhdr, next) {
@@ -1737,6 +1738,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
             pos = src->pos;
         }
         length = (uint32_t)(src->last - pos);
+		mlen += length;
         while (length > 0 && remain > 0) {
             if (mbuf_full(dst)) {
                 dst = mbuf_get();
@@ -1754,6 +1756,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
             remain -= n;
         }
     }
+	msg->mlen = mlen;
     
     return msg;
 }
