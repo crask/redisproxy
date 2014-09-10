@@ -1757,6 +1757,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
         }
     }
 	msg->mlen = mlen;
+	msg->noreply = 1;
     
     return msg;
 }
@@ -2057,7 +2058,7 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
         return NC_OK;
     }
 
-    msg->swallow = 1;
+    //msg->swallow = 1;
 
     status = req_enqueue(ctx, pmsg->origin, msg);
     if (status != NC_OK) {
