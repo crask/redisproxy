@@ -360,7 +360,7 @@ msg_clone(struct msg *msg)
     clone->error = msg->error;
     clone->noreply = msg->noreply;
     clone->swallow = msg->swallow;
-	clone->mlen = msg->mlen;
+    clone->mlen = msg->mlen;
     
     return clone;
 }

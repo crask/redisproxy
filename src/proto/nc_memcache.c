@@ -1727,7 +1727,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
                      rsp->vlen);
     dst->last += n;
     ASSERT(dst->last <= dst->end);
-	mlen = n;
+    mlen = n;
     
     remain = rsp->vlen + 2;     /* <data block>\r\n */
     STAILQ_FOREACH(src, &rsp->mhdr, next) {
@@ -1738,7 +1738,7 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
             pos = src->pos;
         }
         length = (uint32_t)(src->last - pos);
-		mlen += length;
+        mlen += length;
         while (length > 0 && remain > 0) {
             if (mbuf_full(dst)) {
                 dst = mbuf_get();
@@ -1756,8 +1756,8 @@ memcache_build_warmup(struct msg *req, struct msg *rsp)
             remain -= n;
         }
     }
-	msg->mlen = mlen;
-	msg->noreply = 1;
+    msg->mlen = mlen;
+    msg->noreply = 1;
     
     return msg;
 }
@@ -2057,8 +2057,6 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
     if (msg == NULL) {
         return NC_OK;
     }
-
-    //msg->swallow = 1;
 
     status = req_enqueue(ctx, pmsg->origin, msg);
     if (status != NC_OK) {
