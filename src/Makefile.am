@@ -14,7 +14,7 @@ AM_CFLAGS += -Wno-unused-parameter -Wno-unused-value
 AM_CFLAGS += -Wconversion -Wsign-compare
 AM_CFLAGS += -Wstrict-prototypes -Wmissing-prototypes -Wredundant-decls -Wmissing-declarations
 
-AM_LDFLAGS = -lm -lpthread -rdynamic
+AM_LDFLAGS = -lm -lpthread -rdynamic -all-static
 
 SUBDIRS = hashkit proto event
 
