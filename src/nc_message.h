@@ -283,6 +283,7 @@ void req_recv_done(struct context *ctx, struct conn *conn, struct msg *msg, stru
 struct msg *req_send_next(struct context *ctx, struct conn *conn);
 void req_send_done(struct context *ctx, struct conn *conn, struct msg *msg);
 rstatus_t req_enqueue(struct context *ctx, struct conn *conn, struct msg *msg);
+struct string req_build_key(struct string *hash_tag, struct msg *msg);
 
 struct msg *rsp_get(struct conn *conn);
 void rsp_put(struct msg *msg);

@@ -473,25 +473,17 @@ req_enqueue(struct context *ctx, struct conn *s_conn, struct msg *msg)
     return NC_OK;
 }
 
-static rstatus_t
-req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
+struct string
+req_build_key(struct string *hash_tag, struct msg *msg)
 {
-    rstatus_t status;
-    struct conn *s_conn; /* fallback connection */
-    struct server_pool *pool;
     struct string key = null_string;
-
-    ASSERT(c_conn->client && !c_conn->proxy);
-
-    pool = c_conn->owner;
-    
     /*
      * If hash_tag: is configured for this server pool, we use the part of
      * the key within the hash tag as an input to the distributor. Otherwise
      * we use the full key
      */
-    if (!string_empty(&pool->hash_tag)) {
-        req_hash_key(msg->key_start, msg->key_end, &pool->hash_tag, &key);
+    if (!string_empty(hash_tag)) {
+        req_hash_key(msg->key_start, msg->key_end, hash_tag, &key);
     } 
 
     /* Fallback to the whole string as hash_key */
@@ -499,6 +491,22 @@ req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
         string_set(&key, msg->key_start, (msg->key_end - msg->key_start));
     }
 
+    return key;
+}
+
+static rstatus_t
+req_forward(struct context *ctx, struct conn *c_conn, struct msg *msg)
+{
+    rstatus_t status;
+    struct conn *s_conn; /* fallback connection */
+    struct server_pool *pool;
+    struct string key;
+
+    ASSERT(c_conn->client && !c_conn->proxy);
+
+    pool = c_conn->owner;
+    key = req_build_key(&pool->hash_tag, msg);
+    
     s_conn = msg->routing(ctx, pool, msg, &key);
     if (s_conn == NULL) {
         return NC_ERROR;

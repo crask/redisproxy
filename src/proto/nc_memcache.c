@@ -2027,6 +2027,8 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
     rstatus_t status;
     struct msg *pmsg;
     struct conn *c_conn;
+    struct server_pool *warmup_pool;
+    struct string key;
     
     pmsg = msg->peer;           /* request */
     c_conn = pmsg->owner;
@@ -2058,7 +2060,12 @@ memcache_pre_rsp_forward(struct context *ctx, struct conn *s_conn, struct msg *m
         return NC_OK;
     }
 
-    status = req_enqueue(ctx, pmsg->origin, msg);
+    /* pick a new connection */
+    warmup_pool = c_conn->owner;
+    key = req_build_key(&warmup_pool->hash_tag, pmsg);
+    s_conn = server_pool_conn(ctx, warmup_pool, key.data, key.len);
+
+    status = req_enqueue(ctx, s_conn, msg);
     if (status != NC_OK) {
         req_put(msg);
     }
