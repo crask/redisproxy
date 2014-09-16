@@ -188,7 +188,7 @@ conf_server_each_transform(void *elem, void *data)
     s->name = cs->name;
     s->port = (uint16_t)cs->port;
     s->weight = (uint32_t)cs->weight;
-    s->flags = (uint32_t)cs->weight;
+    s->flags = (uint32_t)cs->flags;
 
     s->family = cs->info.family;
     s->addrlen = cs->info.addrlen;

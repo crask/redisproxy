@@ -62,10 +62,23 @@ server_pool_each_dump(void *elem, void *data)
             server_each_dump(server, "    ");
         }
     }
-    
-    log_debug(LOG_DEBUG, "pool %.*s partition continuums:", sp->name.len, sp->name.data);
-    for (i = 0; i < array_n(&sp->partition_continuum); i++) {
-        p = array_get(&sp->partition_continuum, i);
+
+    log_debug(LOG_DEBUG, "pool %.*s read partition continuums:", sp->name.len, sp->name.data);
+    for (i = 0; i < array_n(&sp->r_partition_continuum); i++) {
+        p = array_get(&sp->r_partition_continuum, i);
+        log_debug(LOG_DEBUG, "  partition continuum: %d", i);
+
+        for (j = 0; j < array_n(p); j++) {
+            c = array_get(p, j);
+            server = array_get(&sp->server, c->index);
+            log_debug(LOG_DEBUG, "    continuum index:%d value:%d", c->index, c->value);
+            server_each_dump(server, "    ");
+        }
+    }
+
+    log_debug(LOG_DEBUG, "pool %.*s write partition continuums:", sp->name.len, sp->name.data);
+    for (i = 0; i < array_n(&sp->w_partition_continuum); i++) {
+        p = array_get(&sp->w_partition_continuum, i);
         log_debug(LOG_DEBUG, "  partition continuum: %d", i);
 
         for (j = 0; j < array_n(p); j++) {

@@ -77,6 +77,7 @@ struct conf_server {
     struct string   name;               /* name */
     int             port;               /* port */
     int             weight;             /* weight */
+    int             flags;              /* flags */
     int             start;              /* range start */
     int             end;                /* range end */
     struct sockinfo info;               /* connect socket info */

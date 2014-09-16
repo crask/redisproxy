@@ -12,14 +12,16 @@ static const char _server_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 10, 1, 11, 1, 12, 1, 
-	13, 2, 8, 7, 2, 12, 13, 3, 
-	9, 12, 13
+	13, 1, 14, 1, 15, 1, 16, 2, 
+	8, 7, 2, 12, 13, 3, 9, 12, 
+	13
 };
 
 static const char _server_key_offsets[] = {
 	0, 0, 8, 13, 23, 26, 28, 31, 
-	33, 36, 38, 41, 43, 46, 48, 51, 
-	61, 66, 71, 74, 84, 89, 100
+	33, 35, 37, 38, 41, 43, 46, 48, 
+	51, 53, 56, 66, 71, 77, 80, 90, 
+	95, 106, 111
 };
 
 static const char _server_trans_keys[] = {
@@ -27,75 +29,83 @@ static const char _server_trans_keys[] = {
 	95, 65, 90, 97, 122, 45, 47, 58, 
 	95, 48, 57, 65, 90, 97, 122, 58, 
 	48, 57, 48, 57, 45, 48, 57, 48, 
-	57, 46, 48, 57, 48, 57, 46, 48, 
+	57, 114, 119, 111, 119, 111, 46, 48, 
 	57, 48, 57, 46, 48, 57, 48, 57, 
-	58, 48, 57, 45, 46, 58, 95, 48, 
-	57, 65, 90, 97, 122, 95, 65, 90, 
+	46, 48, 57, 48, 57, 58, 48, 57, 
+	45, 46, 58, 95, 48, 57, 65, 90, 
+	97, 122, 95, 65, 90, 97, 122, 32, 
+	58, 9, 13, 48, 57, 32, 9, 13, 
+	32, 95, 9, 13, 48, 57, 65, 90, 
 	97, 122, 32, 9, 13, 48, 57, 32, 
-	9, 13, 32, 95, 9, 13, 48, 57, 
-	65, 90, 97, 122, 32, 9, 13, 48, 
-	57, 32, 45, 95, 9, 13, 48, 57, 
-	65, 90, 97, 122, 32, 9, 13, 48, 
-	57, 0
+	45, 95, 9, 13, 48, 57, 65, 90, 
+	97, 122, 32, 9, 13, 48, 57, 32, 
+	9, 13, 0
 };
 
 static const char _server_single_lengths[] = {
 	0, 2, 1, 4, 1, 0, 1, 0, 
-	1, 0, 1, 0, 1, 0, 1, 4, 
-	1, 1, 1, 2, 1, 3, 1
+	2, 2, 1, 1, 0, 1, 0, 1, 
+	0, 1, 4, 1, 2, 1, 2, 1, 
+	3, 1, 1
 };
 
 static const char _server_range_lengths[] = {
 	0, 3, 2, 3, 1, 1, 1, 1, 
-	1, 1, 1, 1, 1, 1, 1, 3, 
-	2, 2, 1, 4, 2, 4, 2
+	0, 0, 0, 1, 1, 1, 1, 1, 
+	1, 1, 3, 2, 2, 1, 4, 2, 
+	4, 2, 1
 };
 
 static const char _server_index_offsets[] = {
 	0, 0, 6, 10, 18, 21, 23, 26, 
-	28, 31, 33, 36, 38, 41, 43, 46, 
-	54, 58, 62, 65, 72, 76, 84
+	28, 31, 34, 36, 39, 41, 44, 46, 
+	49, 51, 54, 62, 66, 71, 74, 81, 
+	85, 93, 97
 };
 
 static const char _server_indicies[] = {
 	1, 3, 2, 3, 3, 0, 4, 4, 
 	4, 0, 4, 6, 7, 4, 4, 4, 
 	4, 5, 9, 8, 5, 11, 10, 12, 
-	13, 5, 15, 14, 16, 17, 0, 18, 
-	0, 19, 18, 0, 20, 0, 21, 20, 
-	0, 22, 0, 7, 22, 5, 23, 24, 
-	7, 23, 23, 23, 23, 5, 23, 23, 
-	23, 0, 27, 26, 11, 25, 28, 28, 
-	25, 30, 31, 28, 13, 31, 31, 29, 
-	28, 28, 15, 25, 32, 33, 33, 28, 
-	33, 33, 33, 25, 32, 28, 13, 34, 
-	0
+	13, 5, 15, 14, 16, 17, 5, 18, 
+	19, 5, 20, 5, 21, 22, 0, 23, 
+	0, 24, 23, 0, 25, 0, 26, 25, 
+	0, 27, 0, 7, 27, 5, 28, 29, 
+	7, 28, 28, 28, 28, 5, 28, 28, 
+	28, 0, 32, 33, 31, 11, 30, 34, 
+	34, 30, 36, 37, 34, 13, 37, 37, 
+	35, 34, 34, 15, 30, 38, 39, 39, 
+	34, 39, 39, 39, 30, 38, 34, 13, 
+	40, 36, 34, 30, 0
 };
 
 static const char _server_trans_targs[] = {
-	0, 2, 8, 15, 3, 0, 2, 4, 
-	4, 5, 0, 17, 7, 6, 0, 20, 
-	9, 8, 10, 11, 12, 13, 14, 15, 
-	16, 0, 18, 19, 18, 0, 19, 21, 
-	22, 21, 0
+	0, 2, 11, 18, 3, 0, 2, 4, 
+	4, 5, 0, 20, 7, 6, 0, 23, 
+	9, 10, 26, 26, 26, 12, 11, 13, 
+	14, 15, 16, 17, 18, 19, 0, 21, 
+	22, 8, 21, 0, 22, 24, 25, 24, 
+	0
 };
 
 static const char _server_trans_actions[] = {
 	5, 1, 1, 1, 0, 0, 0, 3, 
 	7, 0, 13, 9, 0, 17, 21, 19, 
-	0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 23, 11, 11, 0, 31, 0, 25, 
-	0, 15, 28
+	0, 0, 27, 25, 29, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 23, 11, 
+	11, 11, 0, 37, 0, 31, 0, 15, 
+	34
 };
 
 static const char _server_eof_actions[] = {
 	0, 5, 5, 0, 0, 13, 0, 21, 
-	5, 5, 5, 5, 5, 5, 0, 0, 
-	5, 11, 0, 0, 0, 0, 0
+	0, 0, 0, 5, 5, 5, 5, 5, 
+	5, 0, 0, 5, 11, 0, 0, 0, 
+	0, 0, 0
 };
 
 static const int server_start = 1;
-static const int server_first_final = 17;
+static const int server_first_final = 20;
 static const int server_error = 0;
 
 static const int server_en_main = 1;
@@ -136,7 +146,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     rstatus_t status;
     uint8_t *addr, *pname, *name;
     uint32_t addrlen, pnamelen, namelen, portlen;
-    int port, weight, rstart, rend;
+    int port, weight, rstart, rend, flags;
     struct array *a;
     struct string address;
     struct string *value;
@@ -154,6 +164,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     port = 0;
     portlen = 0;
     weight = 0;
+    flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; /* default rw */
     rstart = 0;
     rend = 0;
 
@@ -167,12 +178,12 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     eof = pe;
 
     
-#line 171 "nc_confx.c"
+#line 182 "nc_confx.c"
 	{
 	cs = server_start;
 	}
 
-#line 176 "nc_confx.c"
+#line 187 "nc_confx.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -247,97 +258,109 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 75 "nc_confx.rl"
+#line 76 "nc_confx.rl"
 	{
             addr = p;
             pname = p;
         }
 	break;
 	case 1:
-#line 80 "nc_confx.rl"
+#line 81 "nc_confx.rl"
 	{
             addrlen = (uint32_t)(p - addr);
         }
 	break;
 	case 2:
-#line 84 "nc_confx.rl"
+#line 85 "nc_confx.rl"
 	{
             log_error("conf: invalid addr");
             status = NC_ERROR;
         }
 	break;
 	case 3:
-#line 89 "nc_confx.rl"
+#line 90 "nc_confx.rl"
 	{
             port = port * 10 + ((*p) - '0'); 
             portlen++;
         }
 	break;
 	case 4:
-#line 99 "nc_confx.rl"
+#line 100 "nc_confx.rl"
 	{
             weight = weight * 10 + ((*p) - '0');
         }
 	break;
 	case 5:
-#line 103 "nc_confx.rl"
+#line 104 "nc_confx.rl"
 	{
             pnamelen = p - pname;
         }
 	break;
 	case 6:
-#line 107 "nc_confx.rl"
+#line 108 "nc_confx.rl"
 	{
             log_error("conf: invalid weight");
             status = NC_ERROR;
         }
 	break;
 	case 7:
-#line 112 "nc_confx.rl"
+#line 113 "nc_confx.rl"
 	{
             namelen++;
         }
 	break;
 	case 8:
-#line 116 "nc_confx.rl"
+#line 117 "nc_confx.rl"
 	{
             name = p;
         }
 	break;
 	case 9:
-#line 120 "nc_confx.rl"
+#line 121 "nc_confx.rl"
 	{
             log_error("conf: invalid name");
             status = NC_ERROR;
         }
 	break;
 	case 10:
-#line 125 "nc_confx.rl"
+#line 126 "nc_confx.rl"
 	{
             rstart = rstart * 10 + ((*p) - '0');
         }
 	break;
 	case 11:
-#line 129 "nc_confx.rl"
+#line 130 "nc_confx.rl"
 	{
             rend = rend * 10 + ((*p) - '0');
         }
 	break;
 	case 12:
-#line 133 "nc_confx.rl"
+#line 134 "nc_confx.rl"
 	{
             log_error("conf: invalid range");
             status = NC_ERROR;
         }
 	break;
 	case 13:
-#line 138 "nc_confx.rl"
+#line 139 "nc_confx.rl"
 	{
             log_error("conf: invalid server conf");
             status = NC_ERROR;
         }
 	break;
-#line 341 "nc_confx.c"
+	case 14:
+#line 144 "nc_confx.rl"
+	{ flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
+	break;
+	case 15:
+#line 145 "nc_confx.rl"
+	{ flags = NC_SERVER_READABLE; }
+	break;
+	case 16:
+#line 146 "nc_confx.rl"
+	{ flags = NC_SERVER_WRITABLE; }
+	break;
+#line 364 "nc_confx.c"
 		}
 	}
 
@@ -354,33 +377,33 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 2:
-#line 84 "nc_confx.rl"
+#line 85 "nc_confx.rl"
 	{
             log_error("conf: invalid addr");
             status = NC_ERROR;
         }
 	break;
 	case 5:
-#line 103 "nc_confx.rl"
+#line 104 "nc_confx.rl"
 	{
             pnamelen = p - pname;
         }
 	break;
 	case 6:
-#line 107 "nc_confx.rl"
+#line 108 "nc_confx.rl"
 	{
             log_error("conf: invalid weight");
             status = NC_ERROR;
         }
 	break;
 	case 12:
-#line 133 "nc_confx.rl"
+#line 134 "nc_confx.rl"
 	{
             log_error("conf: invalid range");
             status = NC_ERROR;
         }
 	break;
-#line 384 "nc_confx.c"
+#line 407 "nc_confx.c"
 		}
 	}
 	}
@@ -388,7 +411,7 @@ _again:
 	_out: {}
 	}
 
-#line 173 "nc_confx.rl"
+#line 180 "nc_confx.rl"
 
 
     if (status != NC_OK) {
@@ -408,6 +431,7 @@ _again:
     field->start = rstart;
     field->end = rend;
     field->weight = weight;
+    field->flags = flags;
     field->port = port;
     
     status = string_copy(&field->pname, pname, pnamelen);

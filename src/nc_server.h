@@ -77,7 +77,7 @@ struct server {
     struct string    name;     /* name (ref in conf_server) */
     uint16_t         port;     /* port */
     uint32_t         weight;   /* weight */
-    uint32_t         flags;  /* weight */
+    uint32_t         flags;    /* flags r/w */
 
     int              family;   /* socket family */
     socklen_t        addrlen;  /* socket length */

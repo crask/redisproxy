@@ -2194,14 +2194,11 @@ redis_routing(struct context *ctx, struct server_pool *pool, struct msg *msg,
     struct conn *s_conn;
 
     if (msg->type < MSG_REQ_REDIS_READREQ_START) {
-        /* write req */
-        use_writable_pool(pool);
-        s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+        use_writable_pool(pool);         /* write req */
     } else {
-        /* read req */
-        use_readable_pool(pool);
-        s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+        use_readable_pool(pool);         /* read req */
     }
+    s_conn = server_pool_conn(ctx, pool, key->data, key->len);
 
     return s_conn;
 } 

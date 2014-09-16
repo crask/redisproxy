@@ -41,7 +41,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     rstatus_t status;
     uint8_t *addr, *pname, *name;
     uint32_t addrlen, pnamelen, namelen, portlen;
-    int port, weight, rstart, rend;
+    int port, weight, rstart, rend, flags;
     struct array *a;
     struct string address;
     struct string *value;
@@ -59,6 +59,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     port = 0;
     portlen = 0;
     weight = 0;
+    flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; /* default rw */
     rstart = 0;
     rend = 0;
 
@@ -140,6 +141,10 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
             status = NC_ERROR;
         }
 
+        action flag_rw { flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
+        action flag_ro { flags = NC_SERVER_READABLE; }
+        action flag_wo { flags = NC_SERVER_WRITABLE; }
+
         identifier = [a-zA-Z_][a-zA-Z_0-9\-]*;
 
         ip = (digit+ ('.' digit+){3}) >addr_start %addr_end @!addr_error;
@@ -160,7 +165,9 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         range = rstart '-' rend;
 
-        basic = (ip | host | path) ':' port ':' weight;
+        flags = 'rw' @flag_rw | 'ro' @flag_ro | 'wo' @flag_wo;
+
+        basic = (ip | host | path) ':' port ':' weight (':' flags)?;
 
         optional_name = (' '+ name)?;
 
@@ -189,6 +196,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     field->start = rstart;
     field->end = rend;
     field->weight = weight;
+    field->flags = flags;
     field->port = port;
     
     status = string_copy(&field->pname, pname, pnamelen);
