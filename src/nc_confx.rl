@@ -144,6 +144,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
         action flag_rw { flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
         action flag_ro { flags = NC_SERVER_READABLE; }
         action flag_wo { flags = NC_SERVER_WRITABLE; }
+        action flag_no { flags = 0; }
 
         identifier = [a-zA-Z_][a-zA-Z_0-9\-]*;
 
@@ -165,7 +166,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         range = rstart '-' rend;
 
-        flags = 'rw' @flag_rw | 'ro' @flag_ro | 'wo' @flag_wo;
+        flags = 'rw' @flag_rw | 'ro' @flag_ro | 'wo' @flag_wo | 'no' @flag_no;
 
         basic = (ip | host | path) ':' port ':' weight (':' flags)?;
 
