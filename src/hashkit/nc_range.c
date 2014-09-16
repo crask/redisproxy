@@ -16,8 +16,7 @@ range_update(struct server_pool *pool)
     uint32_t server_index, partition_index, continuum_index;
     struct server *server;
     struct continuum *continuum, *alive_continuum, *continuums;
-    struct array *partition, *alive_partition;
-
+    struct array *partition, *alive_rp, *alive_wp;
 
     now = nc_usec_now();
     if (now < 0) {
@@ -58,7 +57,7 @@ range_update(struct server_pool *pool)
 
         return NC_OK;
     }
-        
+
     /* Allocate the partition continuum only for the first time */
     if (npartition > pool->npartition_continuum) {
         /* Allocate the layer 1 continuum */
@@ -84,16 +83,28 @@ range_update(struct server_pool *pool)
             continuum_index++;
         }
 
+        pool->npartition_continuum = npartition;
+
         /* Allocate the layer 2 partition continuum */
-        status = array_init(&pool->partition_continuum, npartition, sizeof(struct array));
+        status = array_init(&pool->r_partition_continuum, npartition, sizeof(struct array));
         if (status != NC_OK) {
             return status;
         }
-        pool->npartition_continuum = npartition;
-
         for (partition_index = 0; partition_index < npartition; partition_index++) {
-            alive_partition = array_push(&pool->partition_continuum);
-            status = array_init(alive_partition, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
+            alive_rp = array_push(&pool->r_partition_continuum);
+            status = array_init(alive_rp, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
+            if (status != NC_OK) {
+                return status;
+            }
+        }
+
+        status = array_init(&pool->w_partition_continuum, npartition, sizeof(struct array));
+        if (status != NC_OK) {
+            return status;
+        }
+        for (partition_index = 0; partition_index < npartition; partition_index++) {
+            alive_wp = array_push(&pool->w_partition_continuum);
+            status = array_init(alive_wp, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
             if (status != NC_OK) {
                 return status;
             }
@@ -104,8 +115,12 @@ range_update(struct server_pool *pool)
     for (partition_index = 0; partition_index < npartition; partition_index++) {
         partition = array_get(&pool->partition, partition_index); /* live and dead */
 
-        alive_partition = array_get(&pool->partition_continuum, partition_index);
-        array_rewind(alive_partition); /* reset the alive partition */
+        alive_wp = array_get(&pool->w_partition_continuum, partition_index);
+        alive_rp = array_get(&pool->r_partition_continuum, partition_index);
+
+        /* reset the alive partition */
+        array_rewind(alive_wp);
+        array_rewind(alive_rp);
 
         nserver = array_n(partition);   /* totol servers */
         for (server_index = 0; server_index < nserver; server_index++) {
@@ -115,11 +130,18 @@ range_update(struct server_pool *pool)
             if (pool->auto_eject_hosts && server->next_retry > now) {
                 continue;
             }
-            
+
             /* push into the alive partition */
-            alive_continuum = array_push(alive_partition);
-            alive_continuum->index = continuum->index;
-            alive_continuum->value = continuum->value;
+            if (server->flags & NC_SERVER_READABLE) {
+                alive_continuum = array_push(alive_rp);
+                alive_continuum->index = continuum->index;
+                alive_continuum->value = continuum->value;
+            }
+            if (server->flags & NC_SERVER_WRITABLE){
+                alive_continuum = array_push(alive_wp);
+                alive_continuum->index = continuum->index;
+                alive_continuum->value = continuum->value;
+            }
         }
     }
     
@@ -160,7 +182,7 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
     ASSERT(right->index < ncontinuum);
 
     /* Search in the layer 2 continuum */
-    p = array_get(&pool->partition_continuum, right->index);
+    p = array_get(pool->partition_continuum, right->index);
 
     nserver = array_n(p);
     if (nserver == 0) {

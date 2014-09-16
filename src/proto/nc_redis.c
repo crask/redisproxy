@@ -2187,14 +2187,21 @@ redis_destroy_stats(struct redis_stats *stats)
     nc_free(stats);
 }
 
-
 struct conn *
 redis_routing(struct context *ctx, struct server_pool *pool, struct msg *msg,
               struct string *key)
 {
     struct conn *s_conn;
-    
-    s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+
+    if (msg->type < MSG_REQ_REDIS_READREQ_START) {
+        /* write req */
+        use_writable_pool(pool);
+        s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+    } else {
+        /* read req */
+        use_readable_pool(pool);
+        s_conn = server_pool_conn(ctx, pool, key->data, key->len);
+    }
 
     return s_conn;
 } 

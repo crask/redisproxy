@@ -66,6 +66,9 @@ struct continuum {
     uint32_t value;  /* hash value */
 };
 
+#define NC_SERVER_READABLE    (0x01)
+#define NC_SERVER_WRITABLE    (0x02)
+
 struct server {
     uint32_t            idx;   /* server index */
     struct server_pool *owner; /* owner pool */
@@ -74,6 +77,7 @@ struct server {
     struct string    name;     /* name (ref in conf_server) */
     uint16_t         port;     /* port */
     uint32_t         weight;   /* weight */
+    uint32_t         flags;  /* weight */
 
     int              family;   /* socket family */
     socklen_t        addrlen;  /* socket length */
@@ -111,11 +115,14 @@ struct server_pool {
     uint32_t           ncontinuum;           /* # continuum points */
     uint32_t           nserver_continuum;    /* # servers - live and dead on continuum (const) */
     struct continuum   *continuum;           /* continuum */
-    uint32_t           npartition_continuum;
-    struct array       partition_continuum;
     uint32_t           nlive_server;         /* # live server */
     int64_t            next_rebuild;         /* next distribution rebuild time in usec */
+
     struct array       partition;            /* continuum[][] */
+    uint32_t           npartition_continuum;
+    struct array       *partition_continuum;
+    struct array       r_partition_continuum;/* readable partition continuum */
+    struct array       w_partition_continuum;/* writable partition continuum */
 
     struct string      name;                 /* pool name (ref in conf_pool) */
     struct string      addrstr;              /* pool address (ref in conf_pool) */
@@ -184,5 +191,15 @@ void server_pool_deinit(struct array *server_pool);
 void server_pool_probe(struct context *ctx);
 void server_pool_update_quota(struct context *ctx);
 bool server_pool_ratelimit(struct server_pool *pool);
+
+static inline
+void use_writable_pool(struct server_pool *pool) {
+    pool->partition_continuum = &pool->w_partition_continuum;
+}
+
+static inline
+void use_readable_pool(struct server_pool *pool) {
+    pool->partition_continuum = &pool->r_partition_continuum;
+}
 
 #endif
