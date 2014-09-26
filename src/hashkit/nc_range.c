@@ -7,16 +7,85 @@
 
 #define DEFAULT_PARTITION_SIZE 2
 
+static rstatus_t
+alloc_layer2_continum(struct array *pc, uint32_t npartition, uint32_t ntags)
+{
+    rstatus_t status;
+    uint32_t pidx;
+
+    status = array_init(pc, npartition, sizeof(struct array));
+    if (status != NC_OK) {
+        return status;
+    }
+
+    for (pidx = 0; pidx < npartition; pidx++) {
+        uint32_t tag_idx;
+        struct array *alive_servers, *tagged_continuum;
+
+        tagged_continuum = array_push(pc);
+        status = array_init(tagged_continuum, ntags, sizeof(struct array));
+        if (status != NC_OK) {
+            return status;
+        }
+            
+        for (tag_idx = 0; tag_idx < ntags; tag_idx++) {
+            alive_servers = array_push(tagged_continuum);
+            status = array_init(alive_servers, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
+            if (status != NC_OK) {
+                return status;
+            }
+        }
+    }
+
+    return NC_OK;
+}
+
+static rstatus_t
+reconstruct_tagged_continuum(struct array *tagged_continuum, struct server_pool *pool,
+                           struct array *partition, int flag, int64_t now) 
+{
+    uint32_t i, nserver, ntags;
+    struct array *alives;
+    struct server *server;
+
+    ntags = array_n(tagged_continuum);
+    for (i = 0; i < ntags; i++) {
+        array_rewind(array_get(tagged_continuum, i));
+    }
+
+    nserver = array_n(partition);   /* totol servers */
+    for (i = 0; i < nserver; i++) {
+        struct continuum *continuum, *alive_continuum;
+
+        continuum = array_get(partition, i);
+        server = array_get(&pool->server, continuum->index);
+            
+        if (pool->auto_eject_hosts && server->next_retry > now) {
+            continue;
+        }
+
+        /* push into the alive partition */
+        if (server->flags & flag) {
+            alives = array_get(tagged_continuum, server->tag_idx);
+            alive_continuum = array_push(alives);
+            alive_continuum->index = continuum->index;
+            alive_continuum->value = continuum->value;
+        }
+    }
+
+    return NC_OK;
+}
+
 rstatus_t
 range_update(struct server_pool *pool)
 {
     rstatus_t status;
-    uint32_t nserver, nlive_server, npartition;
+    uint32_t nserver, nlive_server, npartition, ntags;
     int64_t now;
     uint32_t server_index, partition_index, continuum_index;
     struct server *server;
-    struct continuum *continuum, *alive_continuum, *continuums;
-    struct array *partition, *alive_rp, *alive_wp;
+    struct continuum *continuum, *continuums;
+    struct array *partition;
 
     now = nc_usec_now();
     if (now < 0) {
@@ -86,63 +155,29 @@ range_update(struct server_pool *pool)
         pool->npartition_continuum = npartition;
 
         /* Allocate the layer 2 partition continuum */
-        status = array_init(&pool->r_partition_continuum, npartition, sizeof(struct array));
+        ntags = array_n(&pool->tags);
+        status = alloc_layer2_continum(&pool->r_partition_continuum, npartition, ntags);
         if (status != NC_OK) {
             return status;
-        }
-        for (partition_index = 0; partition_index < npartition; partition_index++) {
-            alive_rp = array_push(&pool->r_partition_continuum);
-            status = array_init(alive_rp, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
-            if (status != NC_OK) {
-                return status;
-            }
         }
 
-        status = array_init(&pool->w_partition_continuum, npartition, sizeof(struct array));
+        status = alloc_layer2_continum(&pool->w_partition_continuum, npartition, ntags);
         if (status != NC_OK) {
             return status;
         }
-        for (partition_index = 0; partition_index < npartition; partition_index++) {
-            alive_wp = array_push(&pool->w_partition_continuum);
-            status = array_init(alive_wp, DEFAULT_PARTITION_SIZE, sizeof(struct continuum));
-            if (status != NC_OK) {
-                return status;
-            }
-        }    
     }
     
     /* Construct the layer 2 partition continuum */
     for (partition_index = 0; partition_index < npartition; partition_index++) {
+        struct array *tagged_continuum;
+
         partition = array_get(&pool->partition, partition_index); /* live and dead */
 
-        alive_wp = array_get(&pool->w_partition_continuum, partition_index);
-        alive_rp = array_get(&pool->r_partition_continuum, partition_index);
+        tagged_continuum = array_get(&pool->r_partition_continuum, partition_index);
+        reconstruct_tagged_continuum(tagged_continuum, pool, partition, NC_SERVER_READABLE, now);
 
-        /* reset the alive partition */
-        array_rewind(alive_wp);
-        array_rewind(alive_rp);
-
-        nserver = array_n(partition);   /* totol servers */
-        for (server_index = 0; server_index < nserver; server_index++) {
-            continuum = array_get(partition, server_index);
-            server = array_get(&pool->server, continuum->index);
-            
-            if (pool->auto_eject_hosts && server->next_retry > now) {
-                continue;
-            }
-
-            /* push into the alive partition */
-            if (server->flags & NC_SERVER_READABLE) {
-                alive_continuum = array_push(alive_rp);
-                alive_continuum->index = continuum->index;
-                alive_continuum->value = continuum->value;
-            }
-            if (server->flags & NC_SERVER_WRITABLE){
-                alive_continuum = array_push(alive_wp);
-                alive_continuum->index = continuum->index;
-                alive_continuum->value = continuum->value;
-            }
-        }
+        tagged_continuum = array_get(&pool->w_partition_continuum, partition_index);
+        reconstruct_tagged_continuum(tagged_continuum, pool, partition, NC_SERVER_WRITABLE, now);
     }
     
     log_debug(LOG_VERB, "updated pool %"PRIu32" '%.*s' with %"PRIu32" servers",
@@ -154,7 +189,7 @@ int
 range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t ncontinuum, uint32_t hash)
 {
     struct continuum *left, *right, *middle, *c;
-    struct array *p;
+    struct array *p, *tagged_continuum;
     uint32_t nserver;
 
     hash &= DIST_RANGE_MAX - 1;         /* only keep the low 16 bits */
@@ -182,19 +217,38 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
     ASSERT(right->index < ncontinuum);
 
     /* Search in the layer 2 continuum */
-    p = array_get(pool->partition_continuum, right->index);
-
+    tagged_continuum = array_get(pool->partition_continuum, right->index);
+    p = array_get(tagged_continuum, pool->tag_idx);
     nserver = array_n(p);
+
+    /* if no alive server in the continuum with local_tag, failover to other tags */
     if (nserver == 0) {
-        errno = NC_ESERVICEUNAVAILABLE;
-        log_debug(LOG_VERB, "no alive server in partition %d", right->index);
-        return -1;
+        int i, tag_idx;
+
+        for (i = 0; i < MAX_FAILOVER_TAGS; i++) {
+            tag_idx = pool->fo_tag_idx[i];
+            if (tag_idx < 0) continue;
+            p = array_get(tagged_continuum, tag_idx);
+            nserver = array_n(p);
+            if (nserver > 0) break;
+        }
+
+        if (nserver == 0) {
+            errno = NC_ESERVICEUNAVAILABLE;
+            log_debug(LOG_VERB, "no alive server in partition %d", right->index);
+            return -1;
+        }
     }
     
     ASSERT(array_n(p) > 0);
-    
+
     /* Random load balancing */
-    c = array_get(p, random() % array_n(p));
+    log_debug(LOG_VVVERB, "pick from %d servers %d", nserver);
+    if (nserver > 1) {
+        c = array_get(p, random() % array_n(p));
+    } else {
+        c = array_get(p, 0);
+    }
 
     log_debug(LOG_VVERB, "dispatch hash %"PRIu32" to index %"PRIu32,
               hash, c->index);

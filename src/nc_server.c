@@ -49,6 +49,8 @@ server_pool_each_dump(void *elem, void *data)
     uint32_t i, j;
     struct array *p;
     struct continuum *c;
+
+    return NC_OK;
     
     log_debug(LOG_DEBUG, "pool %.*s partitions:", sp->name.len, sp->name.data);
     for (i = 0; i < array_n(&sp->partition); i++) {
@@ -188,6 +190,37 @@ server_each_set_owner(void *elem, void *data)
 }
 
 static rstatus_t
+server_each_set_tag_idx(void *elem, void *data)
+{
+    uint32_t tag_idx, ntags;
+    struct server *s = elem;
+    struct server_pool *sp = data;
+
+    s->tag_idx = -1;
+
+    ntags = array_n(&sp->tags);
+    for (tag_idx = 0; tag_idx < ntags; tag_idx++) {
+        struct string *tag = array_get(&sp->tags, tag_idx);
+        if (string_compare(&s->tag, tag) == 0) {
+            s->tag_idx = (int)tag_idx;
+        }
+    }
+
+    if (s->tag_idx < 0) {
+        struct string *tag = array_push(&sp->tags);
+        *tag = s->tag;
+        s->tag_idx = (int)ntags;
+    }
+
+    log_debug(LOG_VERB, "set tag_idx of server %d '%.*s' with tag %.*s to %d",
+              s->idx,
+              s->pname.len, s->pname.data,
+              s->tag.len, s->tag.data,
+              s->tag_idx);
+    return NC_OK;
+}
+
+static rstatus_t
 server_each_set_stats(void *elem, void *data)
 {
     struct server *s = elem;
@@ -290,6 +323,12 @@ server_init(struct array *server, struct array *conf_server,
     }
 
     status = array_each(server, server_each_set_stats, sp);
+    if (status != NC_OK) {
+        server_deinit(server);
+        return status;
+    }
+
+    status = array_each(server, server_each_set_tag_idx, sp);
     if (status != NC_OK) {
         server_deinit(server);
         return status;
@@ -918,7 +957,45 @@ server_pool_each_set_owner(void *elem, void *data)
     return NC_OK;
 }
 
+static int
+_get_tag_idx(struct array *tags, struct string *tag)
+{
+    uint32_t ntags, i;
+    int tag_idx = -1;
 
+    ntags = array_n(tags);
+    for (i = 0; i < ntags; i++) {
+        if (string_compare(tag, array_get(tags, i)) == 0) {
+            tag_idx = (int)i;
+            break;
+        }
+    }
+
+    return tag_idx;
+}
+
+static rstatus_t
+server_pool_each_set_tag_idx(void *elem, void *data)
+{
+    struct server_pool *sp = elem;
+    struct context *ctx = data;
+    uint32_t ntags, i;
+    
+    /* After server_init done, sp->tags is constructed, 
+       so we can init the tag_idx of the pool now */
+    sp->tag_idx = _get_tag_idx(&sp->tags, &ctx->local_tag);
+
+    /* Initialize failover tag_idx of the pool */
+    ntags = array_n(&ctx->failover_tags);
+    for (i = 0; i < MAX_FAILOVER_TAGS; i++) {
+        if (i < ntags)
+            sp->fo_tag_idx[i] = _get_tag_idx(&sp->tags, array_get(&ctx->failover_tags, i));
+        else
+            sp->fo_tag_idx[i] = -1;
+    }
+
+    return NC_OK;
+}
 
 static rstatus_t
 server_pool_each_init_partition(void *elem, void *data)
@@ -1202,6 +1279,14 @@ server_pool_init(struct array *server_pool, struct array *conf_pool,
         return status;
     }
 
+    /* set tag_idx for each server pool */
+    status = array_each(server_pool, server_pool_each_set_tag_idx, ctx);
+    if (status != NC_OK) {
+        log_error("server: failed to set tag_idx of pool");
+        server_pool_deinit(server_pool);
+        return status;
+    }
+
     /* set gutter pool for each server pool */
     status = array_each(server_pool, server_pool_each_set_gutter, server_pool);
     if (status != NC_OK) {
@@ -1278,14 +1363,14 @@ server_pool_deinit(struct array *server_pool)
             array_deinit(&sp->partition);
         }
 
-        npartition = array_n(&sp->partition_continuum);
+        npartition = array_n(sp->partition_continuum);
         if (npartition > 0) {
             for (j = 0; j < npartition; j++) {
-                p = array_pop(&sp->partition_continuum);
+                p = array_pop(sp->partition_continuum);
                 array_rewind(p);
                 array_deinit(p);
             }
-            array_deinit(&sp->partition_continuum);
+            array_deinit(sp->partition_continuum);
         }
                         
         array_rewind(&sp->downstreams);
@@ -1370,7 +1455,6 @@ server_each_probe(void *elem, void *data)
 static rstatus_t
 server_pool_each_probe(void *elem, void *data)
 {
-    rstatus_t status;
     struct server_pool *pool = elem;
     struct array *servers;
 
@@ -1380,12 +1464,11 @@ server_pool_each_probe(void *elem, void *data)
 
     servers = &pool->server;
     
-    status = array_each(servers, server_each_probe, pool);
+    array_each(servers, server_each_probe, pool);
     
     /* always returns NC_OK */
     return NC_OK;
 }
-
 
 void
 server_pool_probe(struct context *ctx)

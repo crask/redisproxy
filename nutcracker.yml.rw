@@ -5,9 +5,18 @@ alpha:
   preconnect: true
   timeout: 500
   auto_eject_hosts: true
-  server_failure_limit: 3
-  server_retry_timeout: 2000
+  server_failure_limit: 1
+  server_retry_timeout: 5000
   redis: true
   servers:
-   - 127.0.0.1:3456:1:wo server1 0-65536
-   - 127.0.0.1:3457:1:ro server2 0-65536
+   - 127.0.0.1:4445:1 r- tc 0-65536
+   - 127.0.0.1:5445:1 -w tc 0-65536
+
+   - 127.0.0.1:4446:1 r- jx 0-65536
+   - 127.0.0.1:5446:1 -w jx 0-65536
+
+   - 127.0.0.1:4447:1 r- nj 0-65536
+   - 127.0.0.1:5447:1 -w nj 0-65536
+
+   - 127.0.0.1:4448:1 r- hz 0-65536
+   - 127.0.0.1:5448:1 -w hz 0-65536

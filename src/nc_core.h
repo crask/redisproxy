@@ -122,6 +122,8 @@ struct context {
     int                max_timeout; /* epoll wait max timeout in msec */
     int                timeout;
     int64_t            next_tick;   /* next tick */
+    struct string      local_tag;
+    struct array       failover_tags;
 };
 
 
@@ -138,6 +140,8 @@ struct instance {
     pid_t           pid;                         /* process id */
     char            *pid_filename;               /* pid filename */
     unsigned        pidfile:1;                   /* pid file created? */
+    char            *local_tag;
+    char            *failover_tags;
 };
 
 struct context *core_start(struct instance *nci);

@@ -38,6 +38,7 @@
 #define CONF_DEFAULT_DOWNSTREAMS    8
 #define CONF_DEFAULT_PARTITIONS     8
 #define CONF_DEFAULT_PARTITION_SIZE 2
+#define CONF_DEFAULT_TAGS           4
 
 #define CONF_UNSET_NUM  -1
 #define CONF_UNSET_PTR  NULL
@@ -78,6 +79,7 @@ struct conf_server {
     int             port;               /* port */
     int             weight;             /* weight */
     int             flags;              /* flags */
+    struct string   tag;                /* tag */
     int             start;              /* range start */
     int             end;                /* range end */
     struct sockinfo info;               /* connect socket info */

@@ -180,7 +180,6 @@ conf_server_each_transform(void *elem, void *data)
 
     s = array_push(server);
     ASSERT(s != NULL);
-
     s->idx = array_idx(server, s);
     s->owner = NULL;
 
@@ -189,11 +188,11 @@ conf_server_each_transform(void *elem, void *data)
     s->port = (uint16_t)cs->port;
     s->weight = (uint32_t)cs->weight;
     s->flags = (uint32_t)cs->flags;
+    s->tag = cs->tag;
 
     s->family = cs->info.family;
     s->addrlen = cs->info.addrlen;
     s->addr = (struct sockaddr *)&cs->info.addr;
-
     s->ns_conn_q = 0;
     TAILQ_INIT(&s->s_conn_q);
 
@@ -339,7 +338,7 @@ conf_pool_each_transform(void *elem, void *data)
     sp->nserver_continuum = 0;
     sp->continuum = NULL;
     sp->npartition_continuum = 0;
-    array_null(&sp->partition_continuum);
+    sp->partition_continuum = NULL;
     sp->nlive_server = 0;
     sp->next_rebuild = 0LL;
     array_null(&sp->partition);
@@ -393,7 +392,9 @@ conf_pool_each_transform(void *elem, void *data)
     
     sp->message_queue_name = cp->message_queue;
     sp->message_queue = NULL;
-    
+
+    array_init(&sp->tags, CONF_DEFAULT_TAGS, sizeof(struct string));
+
     if (sp->virtual) {
         status = array_init(&sp->downstreams, 
                             array_n(&cp->downstreams), 
@@ -429,7 +430,7 @@ conf_pool_each_transform(void *elem, void *data)
             return status;
         }
     }
-      
+
     log_debug(LOG_VERB, "transform to pool %"PRIu32" '%.*s'", sp->idx,
               sp->name.len, sp->name.data);
 

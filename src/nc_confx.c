@@ -1,5 +1,5 @@
 
-#line 1 "nc_confx.rl"
+#line 1 "src/nc_confx.rl"
 #include <nc_core.h>
 #include <nc_conf.h>
 #include <nc_server.h>
@@ -7,111 +7,114 @@
 #include <nc_confx.h>
 
 
-#line 11 "nc_confx.c"
+#line 11 "src/nc_confx.c"
 static const char _server_actions[] = {
 	0, 1, 0, 1, 1, 1, 2, 1, 
 	3, 1, 4, 1, 5, 1, 6, 1, 
 	7, 1, 10, 1, 11, 1, 12, 1, 
 	13, 1, 14, 1, 15, 1, 16, 1, 
-	17, 2, 8, 7, 2, 12, 13, 3, 
-	9, 12, 13
+	17, 1, 18, 1, 19, 1, 20, 2, 
+	8, 7, 2, 12, 13, 3, 9, 12, 
+	13
 };
 
 static const char _server_key_offsets[] = {
 	0, 0, 8, 13, 23, 26, 28, 31, 
-	33, 36, 37, 39, 40, 43, 45, 48, 
-	50, 53, 55, 58, 68, 73, 79, 82, 
-	92, 97, 108, 113
+	33, 35, 36, 41, 44, 46, 48, 51, 
+	53, 56, 58, 61, 63, 66, 76, 81, 
+	92, 95, 105, 110, 121
 };
 
 static const char _server_trans_keys[] = {
 	47, 95, 48, 57, 65, 90, 97, 122, 
 	95, 65, 90, 97, 122, 45, 47, 58, 
 	95, 48, 57, 65, 90, 97, 122, 58, 
-	48, 57, 48, 57, 45, 48, 57, 48, 
-	57, 110, 114, 119, 111, 111, 119, 111, 
+	48, 57, 48, 57, 32, 48, 57, 45, 
+	114, 45, 119, 32, 95, 65, 90, 97, 
+	122, 45, 48, 57, 48, 57, 45, 119, 
 	46, 48, 57, 48, 57, 46, 48, 57, 
 	48, 57, 46, 48, 57, 48, 57, 58, 
 	48, 57, 45, 46, 58, 95, 48, 57, 
 	65, 90, 97, 122, 95, 65, 90, 97, 
-	122, 32, 58, 9, 13, 48, 57, 32, 
-	9, 13, 32, 95, 9, 13, 48, 57, 
-	65, 90, 97, 122, 32, 9, 13, 48, 
-	57, 32, 45, 95, 9, 13, 48, 57, 
-	65, 90, 97, 122, 32, 9, 13, 48, 
-	57, 32, 9, 13, 0
+	122, 32, 45, 95, 9, 13, 48, 57, 
+	65, 90, 97, 122, 32, 9, 13, 32, 
+	95, 9, 13, 48, 57, 65, 90, 97, 
+	122, 32, 9, 13, 48, 57, 32, 45, 
+	95, 9, 13, 48, 57, 65, 90, 97, 
+	122, 32, 9, 13, 48, 57, 0
 };
 
 static const char _server_single_lengths[] = {
-	0, 2, 1, 4, 1, 0, 1, 0, 
-	3, 1, 2, 1, 1, 0, 1, 0, 
-	1, 0, 1, 4, 1, 2, 1, 2, 
-	1, 3, 1, 1
+	0, 2, 1, 4, 1, 0, 1, 2, 
+	2, 1, 1, 1, 0, 2, 1, 0, 
+	1, 0, 1, 0, 1, 4, 1, 3, 
+	1, 2, 1, 3, 1
 };
 
 static const char _server_range_lengths[] = {
-	0, 3, 2, 3, 1, 1, 1, 1, 
-	0, 0, 0, 0, 1, 1, 1, 1, 
-	1, 1, 1, 3, 2, 2, 1, 4, 
-	2, 4, 2, 1
+	0, 3, 2, 3, 1, 1, 1, 0, 
+	0, 0, 2, 1, 1, 0, 1, 1, 
+	1, 1, 1, 1, 1, 3, 2, 4, 
+	1, 4, 2, 4, 2
 };
 
 static const unsigned char _server_index_offsets[] = {
 	0, 0, 6, 10, 18, 21, 23, 26, 
-	28, 32, 34, 37, 39, 42, 44, 47, 
-	49, 52, 54, 57, 65, 69, 74, 77, 
-	84, 88, 96, 100
+	29, 32, 34, 38, 41, 43, 46, 49, 
+	51, 54, 56, 59, 61, 64, 72, 76, 
+	84, 87, 94, 98, 106
 };
 
 static const char _server_indicies[] = {
 	1, 3, 2, 3, 3, 0, 4, 4, 
 	4, 0, 4, 6, 7, 4, 4, 4, 
 	4, 5, 9, 8, 5, 11, 10, 12, 
-	13, 5, 15, 14, 16, 17, 18, 5, 
-	19, 5, 20, 21, 5, 22, 5, 23, 
-	24, 0, 25, 0, 26, 25, 0, 27, 
-	0, 28, 27, 0, 29, 0, 7, 29, 
-	5, 30, 31, 7, 30, 30, 30, 30, 
-	5, 30, 30, 30, 0, 34, 35, 33, 
-	11, 32, 36, 36, 32, 38, 39, 36, 
-	13, 39, 39, 37, 36, 36, 15, 32, 
-	40, 41, 41, 36, 41, 41, 41, 32, 
-	40, 36, 13, 42, 38, 36, 32, 0
+	11, 5, 13, 14, 5, 15, 16, 5, 
+	17, 5, 19, 19, 19, 18, 20, 21, 
+	5, 23, 22, 24, 25, 5, 26, 27, 
+	0, 28, 0, 29, 28, 0, 30, 0, 
+	31, 30, 0, 32, 0, 7, 32, 5, 
+	33, 34, 7, 33, 33, 33, 33, 5, 
+	33, 33, 33, 0, 37, 38, 38, 36, 
+	38, 38, 38, 35, 39, 39, 35, 41, 
+	42, 39, 21, 42, 42, 40, 39, 39, 
+	23, 35, 43, 44, 44, 39, 44, 44, 
+	44, 35, 43, 39, 21, 45, 0
 };
 
 static const char _server_trans_targs[] = {
-	0, 2, 12, 19, 3, 0, 2, 4, 
-	4, 5, 0, 21, 7, 6, 0, 24, 
-	9, 10, 11, 27, 27, 27, 27, 13, 
-	12, 14, 15, 16, 17, 18, 19, 20, 
-	0, 22, 23, 8, 22, 0, 23, 25, 
-	26, 25, 0
+	0, 2, 14, 21, 3, 0, 2, 4, 
+	4, 5, 0, 6, 7, 8, 13, 9, 
+	9, 10, 0, 23, 12, 11, 0, 26, 
+	9, 9, 15, 14, 16, 17, 18, 19, 
+	20, 21, 22, 0, 24, 25, 23, 24, 
+	0, 25, 27, 28, 27, 0
 };
 
 static const char _server_trans_actions[] = {
 	5, 1, 1, 1, 0, 0, 0, 3, 
-	7, 0, 13, 9, 0, 17, 21, 19, 
-	0, 0, 0, 31, 27, 25, 29, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 
-	23, 11, 11, 11, 0, 39, 0, 33, 
-	0, 15, 36
+	7, 0, 13, 9, 11, 0, 0, 37, 
+	35, 0, 29, 25, 0, 17, 21, 19, 
+	33, 31, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 23, 27, 27, 0, 0, 
+	45, 0, 39, 0, 15, 42
 };
 
 static const char _server_eof_actions[] = {
-	0, 5, 5, 0, 0, 13, 0, 21, 
-	0, 0, 0, 0, 5, 5, 5, 5, 
-	5, 5, 0, 0, 5, 11, 0, 0, 
-	0, 0, 0, 0
+	0, 5, 5, 0, 0, 13, 0, 0, 
+	0, 0, 29, 0, 21, 0, 5, 5, 
+	5, 5, 5, 5, 0, 0, 5, 27, 
+	0, 0, 0, 0, 0
 };
 
 static const int server_start = 1;
-static const int server_first_final = 21;
+static const int server_first_final = 23;
 static const int server_error = 0;
 
 static const int server_en_main = 1;
 
 
-#line 10 "nc_confx.rl"
+#line 10 "src/nc_confx.rl"
 
 
 void
@@ -119,6 +122,7 @@ conf_server_init(struct conf_server *cs)
 {
     string_init(&cs->pname);
     string_init(&cs->name);
+    string_init(&cs->tag);
     cs->port = 0;
     cs->weight = 0;
     cs->start = 0;
@@ -144,8 +148,8 @@ char *
 conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 {
     rstatus_t status;
-    uint8_t *addr, *pname, *name;
-    uint32_t addrlen, pnamelen, namelen, portlen;
+    uint8_t *addr, *pname, *name, *tag;
+    uint32_t addrlen, pnamelen, namelen, portlen, taglen;
     int port, weight, rstart, rend, flags;
     struct array *a;
     struct string address;
@@ -167,6 +171,8 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; /* default rw */
     rstart = 0;
     rend = 0;
+    tag = NULL;
+    taglen = 0;
 
     status = NC_OK;
 
@@ -178,12 +184,12 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     eof = pe;
 
     
-#line 182 "nc_confx.c"
+#line 188 "src/nc_confx.c"
 	{
 	cs = server_start;
 	}
 
-#line 187 "nc_confx.c"
+#line 193 "src/nc_confx.c"
 	{
 	int _klen;
 	unsigned int _trans;
@@ -258,113 +264,132 @@ _match:
 		switch ( *_acts++ )
 		{
 	case 0:
-#line 76 "nc_confx.rl"
+#line 79 "src/nc_confx.rl"
 	{
             addr = p;
             pname = p;
         }
 	break;
 	case 1:
-#line 81 "nc_confx.rl"
+#line 84 "src/nc_confx.rl"
 	{
             addrlen = (uint32_t)(p - addr);
         }
 	break;
 	case 2:
-#line 85 "nc_confx.rl"
+#line 88 "src/nc_confx.rl"
 	{
             log_error("conf: invalid addr");
             status = NC_ERROR;
         }
 	break;
 	case 3:
-#line 90 "nc_confx.rl"
+#line 93 "src/nc_confx.rl"
 	{
             port = port * 10 + ((*p) - '0'); 
             portlen++;
         }
 	break;
 	case 4:
-#line 100 "nc_confx.rl"
+#line 103 "src/nc_confx.rl"
 	{
             weight = weight * 10 + ((*p) - '0');
         }
 	break;
 	case 5:
-#line 104 "nc_confx.rl"
+#line 107 "src/nc_confx.rl"
 	{
             pnamelen = p - pname;
         }
 	break;
 	case 6:
-#line 108 "nc_confx.rl"
+#line 111 "src/nc_confx.rl"
 	{
             log_error("conf: invalid weight");
             status = NC_ERROR;
         }
 	break;
 	case 7:
-#line 113 "nc_confx.rl"
+#line 116 "src/nc_confx.rl"
 	{
             namelen++;
         }
 	break;
 	case 8:
-#line 117 "nc_confx.rl"
+#line 120 "src/nc_confx.rl"
 	{
             name = p;
         }
 	break;
 	case 9:
-#line 121 "nc_confx.rl"
+#line 124 "src/nc_confx.rl"
 	{
             log_error("conf: invalid name");
             status = NC_ERROR;
         }
 	break;
 	case 10:
-#line 126 "nc_confx.rl"
+#line 129 "src/nc_confx.rl"
 	{
             rstart = rstart * 10 + ((*p) - '0');
         }
 	break;
 	case 11:
-#line 130 "nc_confx.rl"
+#line 133 "src/nc_confx.rl"
 	{
             rend = rend * 10 + ((*p) - '0');
         }
 	break;
 	case 12:
-#line 134 "nc_confx.rl"
+#line 137 "src/nc_confx.rl"
 	{
             log_error("conf: invalid range");
             status = NC_ERROR;
         }
 	break;
 	case 13:
-#line 139 "nc_confx.rl"
+#line 142 "src/nc_confx.rl"
 	{
             log_error("conf: invalid server conf");
             status = NC_ERROR;
         }
 	break;
 	case 14:
-#line 144 "nc_confx.rl"
-	{ flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
+#line 147 "src/nc_confx.rl"
+	{
+            tag = p;
+        }
 	break;
 	case 15:
-#line 145 "nc_confx.rl"
-	{ flags = NC_SERVER_READABLE; }
+#line 151 "src/nc_confx.rl"
+	{
+            taglen = (uint32_t)(p - tag);;
+        }
 	break;
 	case 16:
-#line 146 "nc_confx.rl"
-	{ flags = NC_SERVER_WRITABLE; }
+#line 155 "src/nc_confx.rl"
+	{
+            log_error("conf: invalid tag");
+            status = NC_ERROR;
+        }
 	break;
 	case 17:
-#line 147 "nc_confx.rl"
+#line 160 "src/nc_confx.rl"
+	{ flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
+	break;
+	case 18:
+#line 161 "src/nc_confx.rl"
+	{ flags = NC_SERVER_READABLE; }
+	break;
+	case 19:
+#line 162 "src/nc_confx.rl"
+	{ flags = NC_SERVER_WRITABLE; }
+	break;
+	case 20:
+#line 163 "src/nc_confx.rl"
 	{ flags = 0; }
 	break;
-#line 368 "nc_confx.c"
+#line 393 "src/nc_confx.c"
 		}
 	}
 
@@ -381,33 +406,40 @@ _again:
 	while ( __nacts-- > 0 ) {
 		switch ( *__acts++ ) {
 	case 2:
-#line 85 "nc_confx.rl"
+#line 88 "src/nc_confx.rl"
 	{
             log_error("conf: invalid addr");
             status = NC_ERROR;
         }
 	break;
-	case 5:
-#line 104 "nc_confx.rl"
-	{
-            pnamelen = p - pname;
-        }
-	break;
 	case 6:
-#line 108 "nc_confx.rl"
+#line 111 "src/nc_confx.rl"
 	{
             log_error("conf: invalid weight");
             status = NC_ERROR;
         }
 	break;
 	case 12:
-#line 134 "nc_confx.rl"
+#line 137 "src/nc_confx.rl"
 	{
             log_error("conf: invalid range");
             status = NC_ERROR;
         }
 	break;
-#line 411 "nc_confx.c"
+	case 15:
+#line 151 "src/nc_confx.rl"
+	{
+            taglen = (uint32_t)(p - tag);;
+        }
+	break;
+	case 16:
+#line 155 "src/nc_confx.rl"
+	{
+            log_error("conf: invalid tag");
+            status = NC_ERROR;
+        }
+	break;
+#line 443 "src/nc_confx.c"
 		}
 	}
 	}
@@ -415,7 +447,7 @@ _again:
 	_out: {}
 	}
 
-#line 181 "nc_confx.rl"
+#line 199 "src/nc_confx.rl"
 
 
     if (status != NC_OK) {
@@ -461,6 +493,14 @@ _again:
     status = string_copy(&field->name, name, namelen);
     if (status != NC_OK) {
         return CONF_ERROR;
+    }
+
+    if (taglen > 0) {
+       status = string_copy(&field->tag, tag, taglen);
+       if (status != NC_OK) {
+           return CONF_ERROR;
+       }
+       log_debug(LOG_VERB, "tag %.*s", taglen, tag);
     }
 
     string_init(&address);

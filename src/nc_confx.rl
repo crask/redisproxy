@@ -14,6 +14,7 @@ conf_server_init(struct conf_server *cs)
 {
     string_init(&cs->pname);
     string_init(&cs->name);
+    string_init(&cs->tag);
     cs->port = 0;
     cs->weight = 0;
     cs->start = 0;
@@ -39,8 +40,8 @@ char *
 conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 {
     rstatus_t status;
-    uint8_t *addr, *pname, *name;
-    uint32_t addrlen, pnamelen, namelen, portlen;
+    uint8_t *addr, *pname, *name, *tag;
+    uint32_t addrlen, pnamelen, namelen, portlen, taglen;
     int port, weight, rstart, rend, flags;
     struct array *a;
     struct string address;
@@ -62,6 +63,8 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; /* default rw */
     rstart = 0;
     rend = 0;
+    tag = NULL;
+    taglen = 0;
 
     status = NC_OK;
 
@@ -141,6 +144,19 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
             status = NC_ERROR;
         }
 
+        action tag_start {
+            tag = fpc;
+        }
+
+        action tag_end {
+            taglen = (uint32_t)(fpc - tag);;
+        }
+
+        action tag_error {
+            log_error("conf: invalid tag");
+            status = NC_ERROR;
+        }
+
         action flag_rw { flags = NC_SERVER_READABLE | NC_SERVER_WRITABLE; }
         action flag_ro { flags = NC_SERVER_READABLE; }
         action flag_wo { flags = NC_SERVER_WRITABLE; }
@@ -166,9 +182,11 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         range = rstart '-' rend;
 
-        flags = 'rw' @flag_rw | 'ro' @flag_ro | 'wo' @flag_wo | 'no' @flag_no;
+        flags = 'rw' @flag_rw | 'r-' @flag_ro | '-w' @flag_wo | '--' @flag_no;
 
-        basic = (ip | host | path) ':' port ':' weight (':' flags)?;
+        tag = identifier >tag_start %tag_end @!tag_error;
+
+        basic = (ip | host | path) ':' port ':' weight ' ' flags ' ' tag;
 
         optional_name = (' '+ name)?;
 
@@ -223,6 +241,14 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
     status = string_copy(&field->name, name, namelen);
     if (status != NC_OK) {
         return CONF_ERROR;
+    }
+
+    if (taglen > 0) {
+       status = string_copy(&field->tag, tag, taglen);
+       if (status != NC_OK) {
+           return CONF_ERROR;
+       }
+       log_debug(LOG_VERB, "tag %.*s", taglen, tag);
     }
 
     string_init(&address);

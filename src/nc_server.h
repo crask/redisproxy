@@ -69,33 +69,38 @@ struct continuum {
 #define NC_SERVER_READABLE    (0x01)
 #define NC_SERVER_WRITABLE    (0x02)
 
+#define MAX_FAILOVER_TAGS     (8)
+
 struct server {
-    uint32_t            idx;   /* server index */
-    struct server_pool *owner; /* owner pool */
+    uint32_t            idx;           /* server index */
+    struct server_pool *owner;         /* owner pool */
 
-    struct string    pname;    /* name:port:weight (ref in conf_server) */
-    struct string    name;     /* name (ref in conf_server) */
-    uint16_t         port;     /* port */
-    uint32_t         weight;   /* weight */
-    uint32_t         flags;    /* flags r/w */
+    struct string    pname;            /* name:port:weight (ref in conf_server) */
+    struct string    name;             /* name (ref in conf_server) */
+    uint16_t         port;             /* port */
+    uint32_t         weight;           /* weight */
+    uint32_t         flags;            /* flags r/w */
 
-    int              family;   /* socket family */
-    socklen_t        addrlen;  /* socket length */
-    struct sockaddr *addr;     /* socket address (ref in conf_server) */
+    int              family;           /* socket family */
+    socklen_t        addrlen;          /* socket length */
+    struct sockaddr *addr;             /* socket address (ref in conf_server) */
 
-    uint32_t        ns_conn_q; /* # server connection */
-    struct conn_tqh s_conn_q;  /* server connection q */
+    uint32_t         ns_conn_q;        /* # server connection */
+    struct conn_tqh  s_conn_q;         /* server connection q */
 
-    int64_t  next_retry;       /* next retry time in usec */
-    uint32_t failure_count;    /* # consecutive failures */
-    int64_t last_failure;      /* last failure time in usec */
+    int64_t          next_retry;       /* next retry time in usec */
+    uint32_t         failure_count;    /* # consecutive failures */
+    int64_t          last_failure;     /* last failure time in usec */
 
-    int range_start;           /* range start */
-    int range_end;             /* range end */
+    int              range_start;      /* range start */
+    int              range_end;        /* range end */
 
-    int64_t next_probe;        /* next probe time in usec */
+    struct string    tag;              /* server tag name */
+    int              tag_idx;          /* server tag index in pool tags */
+
+    int64_t          next_probe;       /* next probe time in usec */
     
-    void *stats;               /* stats data */
+    void            *stats;            /* stats data */
 };
 
 struct downstream_pool {
@@ -105,22 +110,22 @@ struct downstream_pool {
 
 struct server_pool {
     uint32_t           idx;                  /* pool index */
-    struct context     *ctx;                 /* owner context */
+    struct context    *ctx;                  /* owner context */
     
-    struct conn        *p_conn;              /* proxy connection (listener) */
+    struct conn       *p_conn;               /* proxy connection (listener) */
     uint32_t           nc_conn_q;            /* # client connection */
     struct conn_tqh    c_conn_q;             /* client connection q */
 
     struct array       server;               /* server[] */
     uint32_t           ncontinuum;           /* # continuum points */
     uint32_t           nserver_continuum;    /* # servers - live and dead on continuum (const) */
-    struct continuum   *continuum;           /* continuum */
+    struct continuum  *continuum;            /* continuum */
     uint32_t           nlive_server;         /* # live server */
     int64_t            next_rebuild;         /* next distribution rebuild time in usec */
 
     struct array       partition;            /* continuum[][] */
     uint32_t           npartition_continuum;
-    struct array       *partition_continuum;
+    struct array      *partition_continuum;
     struct array       r_partition_continuum;/* readable partition continuum */
     struct array       w_partition_continuum;/* writable partition continuum */
 
@@ -129,7 +134,7 @@ struct server_pool {
     uint16_t           port;                 /* port */
     int                family;               /* socket family */
     socklen_t          addrlen;              /* socket length */
-    struct sockaddr    *addr;                /* socket address (ref in conf_pool) */
+    struct sockaddr   *addr;                 /* socket address (ref in conf_pool) */
     int                dist_type;            /* distribution type (dist_type_t) */
     int                key_hash_type;        /* key hash type (hash_type_t) */
     hash_t             key_hash;             /* key hasher */
@@ -156,10 +161,14 @@ struct server_pool {
     struct server_pool *peer;                /* peer pool */
 
     struct array       downstreams;          /* downstreams*/
-    struct hash_table  *downstream_table;    /* downstream table */
+    struct hash_table *downstream_table;     /* downstream table */
 
-    unsigned           virtual:1;            /* virtual server */        
+    unsigned           virtual:1;            /* virtual server */
     struct string      namespace;            /* namespace */
+
+    struct array       tags;                 /* tag names in this pool */
+    int                tag_idx;              /* local tag index in pool tags */
+    int                fo_tag_idx[MAX_FAILOVER_TAGS];   /* failover tag index in pool tags */
 
     float              rate;                 /* # of request per second*/
     float              burst;                /* max bursts of requests */

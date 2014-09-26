@@ -28,6 +28,31 @@ static uint32_t ctx_id; /* context generation */
 static void
 core_core(void *arg, uint32_t events);
 
+static void 
+_init_failover_tags(struct array *tags, char *tags_str)
+{
+    char *p = tags_str;
+    char *start = p;
+
+    array_init(tags, 2, sizeof(struct string));
+    
+    do {
+        if (*p == ',' || *p == '\0') {
+            struct string *tag;
+            long int len = p - start;
+
+            if (len <= 0) break;
+
+            tag = array_push(tags);
+            string_set(tag, start, len);
+            start = p+1;
+
+            if (*p == '\0') break;
+        }
+        p++;
+    } while(1);
+}
+
 static struct context *
 core_ctx_create(struct instance *nci)
 {
@@ -55,6 +80,10 @@ core_ctx_create(struct instance *nci)
     ctx->max_timeout = nci->stats_interval;
     ctx->timeout = ctx->max_timeout;
     ctx->next_tick = now + NC_TICK_INTERVAL;
+
+    /* initialize local tag and failover tags */
+    string_set(&ctx->local_tag, nci->local_tag, nc_strlen(nci->local_tag));
+    _init_failover_tags(&ctx->failover_tags, nci->failover_tags);
 
     /* parse and create configuration */
     ctx->cf = conf_create(nci->conf_filename);
@@ -125,7 +154,8 @@ core_ctx_create(struct instance *nci)
         }
     }
 
-    log_debug(LOG_VVERB, "created ctx %p id %"PRIu32"", ctx, ctx->id);
+    log_debug(LOG_VVERB, "created ctx %p id %"PRIu32" with tag %.*s",
+              ctx, ctx->id, ctx->local_tag.len, ctx->local_tag.data);
 
     return ctx;
 }
