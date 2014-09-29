@@ -35,6 +35,8 @@ _init_failover_tags(struct array *tags, char *tags_str)
     char *start = p;
 
     array_init(tags, 2, sizeof(struct string));
+
+    if (!p) return;
     
     do {
         if (*p == ',' || *p == '\0') {
@@ -82,6 +84,11 @@ core_ctx_create(struct instance *nci)
     ctx->next_tick = now + NC_TICK_INTERVAL;
 
     /* initialize local tag and failover tags */
+    if (nci->local_tag == NULL) {
+        nc_free(ctx);
+        log_error("");
+        return NULL;
+    }
     string_set(&ctx->local_tag, nci->local_tag, nc_strlen(nci->local_tag));
     _init_failover_tags(&ctx->failover_tags, nci->failover_tags);
 

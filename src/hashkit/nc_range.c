@@ -42,7 +42,7 @@ alloc_layer2_continum(struct array *pc, uint32_t npartition, uint32_t ntags)
 
 static rstatus_t
 reconstruct_tagged_continuum(struct array *tagged_continuum, struct server_pool *pool,
-                           struct array *partition, int flag, int64_t now) 
+                             struct array *partition, int flag, int64_t now) 
 {
     uint32_t i, nserver, ntags;
     struct array *alives;
