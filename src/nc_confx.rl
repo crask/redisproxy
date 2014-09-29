@@ -94,6 +94,10 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
             port = port * 10 + (fc - '0'); 
             portlen++;
         }
+
+        action port_end {
+            pnamelen = fpc - pname;
+        }
         
         action port_error {
             log_error("conf: invalid port");
@@ -170,7 +174,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         path = ('/' identifier)+ >addr_start %addr_end @!addr_error;
 
-        port = (digit @port)* @!port_error;
+        port = (digit @port)* %port_end @!port_error;
 
         weight = (digit @weight)+ %weight_end @!weight_error;
 
@@ -186,7 +190,7 @@ conf_add_server(struct conf *cf, struct command *cmd, void *conf)
 
         tag = identifier >tag_start %tag_end @!tag_error;
 
-        basic = (ip | host | path) ':' port ':' weight ' ' flags ' ' tag;
+        basic = (ip | host | path) ':' port (':' weight)? ' '+ flags ' '+ tag;
 
         optional_name = (' '+ name)?;
 
