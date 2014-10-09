@@ -224,6 +224,7 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
     /* if no alive server in the continuum with local_tag, failover to other tags */
     if (nserver == 0) {
         int i, tag_idx;
+        struct string *tag_name, *local_tag_name;
 
         for (i = 0; i < MAX_FAILOVER_TAGS; i++) {
             tag_idx = pool->fo_tag_idx[i];
@@ -238,12 +239,17 @@ range_dispatch(struct server_pool *pool, struct continuum *continuum, uint32_t n
             log_debug(LOG_VERB, "no alive server in partition %d", right->index);
             return -1;
         }
+
+        local_tag_name = array_get(&pool->tags, pool->tag_idx);
+        tag_name = array_get(&pool->tags, tag_idx);
+        log_debug(LOG_VERB, "no alive server in '%.*s', failover to '%.*s'", 
+                  local_tag_name->len, local_tag_name->data,
+                  tag_name->len, tag_name->data);
     }
     
     ASSERT(array_n(p) > 0);
 
     /* Random load balancing */
-    log_debug(LOG_VVVERB, "pick from %d servers %d", nserver);
     if (nserver > 1) {
         c = array_get(p, random() % array_n(p));
     } else {

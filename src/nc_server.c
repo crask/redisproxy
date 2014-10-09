@@ -996,6 +996,10 @@ server_pool_each_set_tag_idx(void *elem, void *data)
     /* After server_init done, sp->tags is constructed, 
        so we can init the tag_idx of the pool now */
     sp->tag_idx = _get_tag_idx(&sp->tags, &ctx->local_tag);
+    if (sp->tag_idx < 0) {
+        log_error("pool: local_tag '%.*s' not exist", ctx->local_tag.len, ctx->local_tag.data);
+        return NC_ERROR;
+    }
 
     /* Initialize failover tag_idx of the pool */
     ntags = array_n(&ctx->failover_tags);

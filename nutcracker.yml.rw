@@ -9,6 +9,7 @@ alpha:
   server_retry_timeout: 5000
   redis: true
   servers:
+
    # shard0
    - 127.0.0.1:4445 -- tc 0-32768
    - 127.0.0.1:5445 -w tc 0-32768

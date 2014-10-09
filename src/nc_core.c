@@ -86,7 +86,7 @@ core_ctx_create(struct instance *nci)
     /* initialize local tag and failover tags */
     if (nci->local_tag == NULL) {
         nc_free(ctx);
-        log_error("");
+        log_error("init: no local_tag provided");
         return NULL;
     }
     string_set(&ctx->local_tag, nci->local_tag, nc_strlen(nci->local_tag));
