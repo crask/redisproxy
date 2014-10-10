@@ -364,6 +364,10 @@ stats_create_buf(struct stats *st)
     size += st->version.len;
     size += key_value_extra;
 
+    size += st->tag_str.len;
+    size += st->tag.len;
+    size += key_value_extra;
+
     size += st->uptime_str.len;
     size += int64_max_digits;
     size += key_value_extra;
@@ -546,6 +550,11 @@ stats_add_header(struct stats *st)
     }
 
     status = stats_add_string(st, &st->version_str, &st->version);
+    if (status != NC_OK) {
+        return status;
+    }
+
+    status = stats_add_string(st, &st->tag_str, &st->tag);
     if (status != NC_OK) {
         return status;
     }
@@ -981,7 +990,7 @@ stats_stop_aggregator(struct stats *st)
 }
 
 struct stats *
-stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
+stats_create(uint16_t stats_port, char *stats_ip, int stats_interval, char *local_tag,
              char *source, struct array *server_pool)
 {
     rstatus_t status;
@@ -1018,6 +1027,9 @@ stats_create(uint16_t stats_port, char *stats_ip, int stats_interval,
 
     string_set_text(&st->version_str, "version");
     string_set_text(&st->version, NC_VERSION_STRING);
+
+    string_set_text(&st->tag_str, "tag");
+    string_set_text(&st->tag, local_tag);
 
     string_set_text(&st->uptime_str, "uptime");
     string_set_text(&st->timestamp_str, "timestamp");

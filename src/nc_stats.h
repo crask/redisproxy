@@ -113,6 +113,8 @@ struct stats {
     struct string       source;                   /* source */
     struct string       version_str;              /* version string */
     struct string       version;                  /* version */
+    struct string       tag_str;                  /* tag string */
+    struct string       tag;                      /* tag */
     struct string       uptime_str;               /* uptime string */
     struct string       timestamp_str;            /* timestamp string */
     struct string       used_cpu_user_str;        /* used cpu user string */
@@ -221,7 +223,7 @@ void _stats_server_incr_by(struct context *ctx, struct server *server, stats_ser
 void _stats_server_decr_by(struct context *ctx, struct server *server, stats_server_field_t fidx, int64_t val);
 void _stats_server_set(struct context *ctx, struct server *server, stats_server_field_t fidx, int64_t val);
 
-struct stats *stats_create(uint16_t stats_port, char *stats_ip, int stats_interval, char *source, struct array *server_pool);
+struct stats *stats_create(uint16_t stats_port, char *stats_ip, int stats_interval, char *local_tag, char *source, struct array *server_pool);
 void stats_destroy(struct stats *stats);
 void stats_swap(struct stats *stats);
 

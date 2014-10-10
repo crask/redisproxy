@@ -114,7 +114,7 @@ core_ctx_create(struct instance *nci)
     /* create stats per server pool */
     if (npool != 0) {
         ctx->stats = stats_create(nci->stats_port, nci->stats_addr, nci->stats_interval,
-                                  nci->hostname, &ctx->pool);
+                                  nci->local_tag, nci->hostname, &ctx->pool);
         if (ctx->stats == NULL) {
             server_pool_deinit(&ctx->pool);
             conf_destroy(ctx->cf);
