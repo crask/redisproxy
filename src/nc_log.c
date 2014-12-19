@@ -75,6 +75,8 @@ void
 log_reopen(void)
 {
     struct logger *l = &logger;
+
+#ifdef NC_LOG_ROTATE
     char buf[LOG_MAX_NAME_LEN];
 
     if (l->fd == STDERR_FILENO) {
@@ -88,12 +90,13 @@ log_reopen(void)
                    strerror(errno));
         return;
     }
-    
+#endif
+
     close(l->fd);
     
     l->fd = open(l->name, O_WRONLY | O_APPEND | O_CREAT, 0644);
     if (l->fd < 0) {
-        log_stderr("reopening log file '%s' failed, ignored: %s", l->name,
+        log_stderr_safe("reopening log file '%s' failed, ignored: %s", l->name,
                    strerror(errno));
     }
 
@@ -106,7 +109,7 @@ log_level_up(void)
 
     if (l->level < LOG_PVERB) {
         l->level++;
-        loga("up log level to %d", l->level);
+        log_safe("up log level to %d", l->level);
     }
 }
 
@@ -117,7 +120,7 @@ log_level_down(void)
 
     if (l->level > LOG_EMERG) {
         l->level--;
-        loga("down log level to %d", l->level);
+        log_safe("down log level to %d", l->level);
     }
 }
 
@@ -128,6 +131,16 @@ log_level_set(int level)
 
     l->level = MAX(LOG_EMERG, MIN(level, LOG_PVERB));
     loga("set log level to %d", l->level);
+}
+
+void
+log_stacktrace(void)
+{
+    struct logger *l = &logger;
+    if (l->fd < 0) {
+        return;
+    }
+    nc_stacktrace_fd(l->fd);
 }
 
 int
@@ -304,6 +317,69 @@ _log_hexdump(const char *file, int line, char *data, int datalen,
     }
 
     n = nc_write(l->fd, buf, len);
+    if (n < 0) {
+        l->nerror++;
+    }
+
+    errno = errno_save;
+}
+
+void
+_log_safe(const char *fmt, ...)
+{
+    struct logger *l = &logger;
+    int len, size, errno_save;
+    char buf[LOG_MAX_LEN];
+    va_list args;
+    ssize_t n;
+
+    if (l->fd < 0) {
+        return;
+    }
+
+    errno_save = errno;
+    len = 0;            /* length of output buffer */
+    size = LOG_MAX_LEN; /* size of output buffer */
+
+    len += safe_snprintf(buf + len, size - len, "[........................] ");
+
+    va_start(args, fmt);
+    len += safe_vsnprintf(buf + len, size - len, fmt, args);
+    va_end(args);
+
+    buf[len++] = '\n';
+
+    n = nc_write(l->fd, buf, len);
+    if (n < 0) {
+        l->nerror++;
+    }
+
+    errno = errno_save;
+}
+
+void
+_log_stderr_safe(const char *fmt, ...)
+{
+    struct logger *l = &logger;
+    int len, size, errno_save;
+    char buf[LOG_MAX_LEN];
+    va_list args;
+    ssize_t n;
+
+
+    errno_save = errno;
+    len = 0;            /* length of output buffer */
+    size = LOG_MAX_LEN; /* size of output buffer */
+
+    len += safe_snprintf(buf + len, size - len, "[........................] ");
+
+    va_start(args, fmt);
+    len += safe_vsnprintf(buf + len, size - len, fmt, args);
+    va_end(args);
+
+    buf[len++] = '\n';
+
+    n = nc_write(STDERR_FILENO, buf, len);
     if (n < 0) {
         l->nerror++;
     }
