@@ -19,6 +19,8 @@
 #define _NC_STRING_H_
 
 #include <string.h>
+#include <sys/types.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <nc_core.h>
 
@@ -88,6 +90,26 @@ int string_compare(const struct string *s1, const struct string *s2);
 
 #define nc_vscnprintf(_s, _n, _f, _a)   \
     _vscnprintf((char *)(_s), (size_t)(_n), _f, _a)
+
+/**
+  A (very) limited version of snprintf.
+  @param   to   Destination buffer.
+  @param   n    Size of destination buffer.
+  @param   fmt  printf() style format string.
+  @returns Number of bytes written, including terminating '\0'
+  Supports 'd' 'i' 'u' 'x' 'p' 's' conversion.
+  Supports 'l' and 'll' modifiers for integral types.
+  Does not support any width/precision.
+  Implemented with simplicity, and async-signal-safety in mind.
+*/
+int _safe_vsnprintf(char *to, size_t size, const char *format, va_list ap);
+int _safe_snprintf(char *to, size_t n, const char *fmt, ...);
+
+#define safe_snprintf(_s, _n, ...)         \
+    _safe_snprintf((char *)(_s), (size_t)(_n), __VA_ARGS__)
+
+#define safe_vsnprintf(_s, _n, _f, _a)     \
+    _safe_vsnprintf((char *)(_s), (size_t)(_n), _f, _a)
 
 static inline uint8_t *
 _nc_strchr(uint8_t *p, uint8_t *last, uint8_t c)
